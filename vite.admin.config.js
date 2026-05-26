@@ -4,9 +4,9 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   build: {
+    outDir: 'dist-admin',
     rollupOptions: {
       input: {
-        public: 'index.html',
         admin: 'admin.html'
       }
     }

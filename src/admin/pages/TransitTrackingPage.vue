@@ -23,6 +23,8 @@
       </div>
     </div>
 
+    <TransitRouteMap />
+
     <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 class="mb-4 text-xl font-bold text-slate-950">Rute Operasional</h2>
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -52,7 +54,11 @@
             </div>
           </div>
 
-          <button type="button" class="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
+          <button
+            type="button"
+            class="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+            @click="showRouteDetail(route)"
+          >
             Lihat Detail Armada
           </button>
         </div>
@@ -73,11 +79,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="bus in activeBuses" :key="bus.id" class="border-b border-slate-200 hover:bg-slate-50">
+            <tr v-for="bus in buses" :key="bus.id" class="border-b border-slate-200 hover:bg-slate-50">
               <td class="px-4 py-3 font-semibold text-slate-950">{{ bus.number }}</td>
               <td class="px-4 py-3">{{ bus.route }}</td>
               <td class="px-4 py-3 text-slate-600">{{ bus.location }}</td>
-              <td class="px-4 py-3">{{ bus.passengers }}/50</td>
+              <td class="px-4 py-3">{{ bus.passengers }}/{{ bus.capacity }}</td>
               <td class="px-4 py-3">
                 <span :class="['rounded-full px-3 py-1 text-xs font-semibold', bus.status === 'On Schedule' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700']">
                   {{ bus.status }}
@@ -88,57 +94,97 @@
         </table>
       </div>
     </section>
+
+    <div v-if="selectedRoute" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
+      <section class="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl">
+        <div class="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-cyan-700">Detail Armada</p>
+            <h2 class="mt-1 text-2xl font-bold text-slate-950">{{ selectedRoute.name }}</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ selectedRoute.route }}</p>
+          </div>
+          <button type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="selectedRoute = null">
+            Tutup
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div class="rounded-lg bg-slate-50 p-4">
+            <p class="text-xs text-slate-500">Armada</p>
+            <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.fleet }}</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 p-4">
+            <p class="text-xs text-slate-500">Penumpang</p>
+            <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.passengers }}</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 p-4">
+            <p class="text-xs text-slate-500">On Time</p>
+            <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.onTime }}%</p>
+          </div>
+          <div class="rounded-lg bg-slate-50 p-4">
+            <p class="text-xs text-slate-500">ETA Simulasi</p>
+            <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.eta }}</p>
+          </div>
+        </div>
+
+        <div class="mt-5 overflow-hidden rounded-lg border border-slate-200">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th class="px-4 py-3 text-left">No. Armada</th>
+                <th class="px-4 py-3 text-left">Lokasi</th>
+                <th class="px-4 py-3 text-left">Penumpang</th>
+                <th class="px-4 py-3 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="bus in selectedRouteBuses" :key="bus.id" class="border-t border-slate-200">
+                <td class="px-4 py-3 font-semibold text-slate-950">{{ bus.number }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ bus.location }}</td>
+                <td class="px-4 py-3">{{ bus.passengers }}/{{ bus.capacity }}</td>
+                <td class="px-4 py-3">{{ bus.status }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import TransitRouteMap from '../components/TransitRouteMap.vue'
+import { activeBuses, transitRoutes } from '../../shared/data/mobilityData'
+import { api } from '../../shared/api/client'
 
-const routes = ref([
-  {
-    id: 1,
-    name: 'Bacitra Route 1',
-    route: 'Terminal Pusat ke Grand City',
-    status: 'active',
-    fleet: 12,
-    passengers: 485,
-    onTime: 98
-  },
-  {
-    id: 2,
-    name: 'Bacitra Route 2',
-    route: 'Terminal Pusat ke Bandara',
-    status: 'active',
-    fleet: 15,
-    passengers: 620,
-    onTime: 95
-  },
-  {
-    id: 3,
-    name: 'Bacitra Route 3',
-    route: 'Sepinggan ke Rumah Sakit',
-    status: 'delayed',
-    fleet: 8,
-    passengers: 245,
-    onTime: 87
-  },
-  {
-    id: 4,
-    name: 'Bacitra Route 4',
-    route: 'Kampus ke Mall',
-    status: 'active',
-    fleet: 10,
-    passengers: 380,
-    onTime: 92
+const routes = ref(transitRoutes)
+const buses = ref(activeBuses)
+const selectedRoute = ref(null)
+
+const selectedRouteBuses = computed(() => {
+  if (!selectedRoute.value) {
+    return []
   }
-])
 
-const activeBuses = ref([
-  { id: 1, number: 'BLK-001', route: 'Route 1', location: 'Jl. MT Haryono', passengers: 42, status: 'On Schedule' },
-  { id: 2, number: 'BLK-002', route: 'Route 1', location: 'Jl. Ahmad Yani', passengers: 38, status: 'On Schedule' },
-  { id: 3, number: 'BLK-003', route: 'Route 2', location: 'Jl. Soekarno Hatta', passengers: 45, status: 'On Schedule' },
-  { id: 4, number: 'BLK-004', route: 'Route 2', location: 'Bandara Road', passengers: 50, status: 'Delayed (5 min)' },
-  { id: 5, number: 'BLK-005', route: 'Route 3', location: 'Jl. Gatot Subroto', passengers: 35, status: 'On Schedule' },
-  { id: 6, number: 'BLK-006', route: 'Route 4', location: 'Grand City', passengers: 48, status: 'On Schedule' }
-])
+  return buses.value.filter(bus => bus.routeId === selectedRoute.value.id)
+})
+
+const showRouteDetail = (route) => {
+  selectedRoute.value = route
+}
+
+onMounted(async () => {
+  try {
+    const [routeItems, busItems] = await Promise.all([
+      api.getAdminRoutes(),
+      api.getAdminBuses()
+    ])
+    routes.value = routeItems
+    buses.value = busItems
+  } catch {
+    routes.value = transitRoutes
+    buses.value = activeBuses
+  }
+})
 </script>

@@ -37,7 +37,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
       <div class="xl:col-span-2">
-        <MapComponent />
+        <DashboardMap />
       </div>
 
       <aside class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -115,20 +115,52 @@
 </template>
 
 <script setup>
-import KPICard from './KPICard.vue'
-import MapComponent from './MapComponent.vue'
-import TrafficChart from './TrafficChart.vue'
+import { onMounted, ref } from 'vue'
+import KPICard from '../components/KPICard.vue'
+import DashboardMap from '../components/DashboardMap.vue'
+import TrafficChart from '../components/TrafficChart.vue'
+import { trafficLocations, transitRoutes } from '../../shared/data/mobilityData'
+import { api } from '../../shared/api/client'
 
-const trafficStatus = [
-  { level: 'Kemacetan Berat', location: 'MT Haryono Simpang Wika', density: 85, color: 'bg-rose-500' },
-  { level: 'Kemacetan Sedang', location: 'Jl. Soekarno Hatta', density: 65, color: 'bg-amber-500' },
-  { level: 'Lancar', location: 'Jl. Ahmad Yani', density: 35, color: 'bg-emerald-500' }
-]
+const levelLabels = {
+  heavy: 'Kemacetan Berat',
+  medium: 'Kemacetan Sedang',
+  light: 'Lancar'
+}
 
-const transitStatus = [
-  { name: 'Bacitra Route 1', fleet: 12, status: 'Operasional' },
-  { name: 'Bacitra Route 2', fleet: 15, status: 'Operasional' },
-  { name: 'Bacitra Route 3', fleet: 8, status: 'Tunda' },
-  { name: 'Bacitra Route 4', fleet: 10, status: 'Operasional' }
-]
+const levelColors = {
+  heavy: 'bg-rose-500',
+  medium: 'bg-amber-500',
+  light: 'bg-emerald-500'
+}
+
+const trafficStatus = ref([])
+const transitStatus = ref([])
+
+const mapTrafficStatus = (items) => items.slice(0, 3).map((location) => ({
+  level: levelLabels[location.level],
+  location: location.name,
+  density: location.density,
+  color: levelColors[location.level]
+}))
+
+const mapTransitStatus = (items) => items.map((route) => ({
+  name: route.name,
+  fleet: route.fleet,
+  status: route.status === 'active' ? 'Operasional' : 'Tunda'
+}))
+
+onMounted(async () => {
+  try {
+    const [traffic, routes] = await Promise.all([
+      api.getAdminTraffic(),
+      api.getAdminRoutes()
+    ])
+    trafficStatus.value = mapTrafficStatus(traffic)
+    transitStatus.value = mapTransitStatus(routes)
+  } catch {
+    trafficStatus.value = mapTrafficStatus(trafficLocations)
+    transitStatus.value = mapTransitStatus(transitRoutes)
+  }
+})
 </script>

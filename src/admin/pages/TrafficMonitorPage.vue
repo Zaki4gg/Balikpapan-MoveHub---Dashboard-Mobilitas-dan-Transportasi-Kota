@@ -1,6 +1,7 @@
 <template>
   <div class="space-y-6">
-    <!-- Search & Filter -->
+    <TrafficCongestionMap />
+
     <div class="bg-white rounded-lg shadow-md p-6">
       <div class="flex gap-4 flex-wrap">
         <input 
@@ -21,7 +22,6 @@
       </div>
     </div>
 
-    <!-- Traffic List -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div v-for="location in filteredLocations" :key="location.id" class="bg-white rounded-lg shadow-md p-6">
         <div class="flex justify-between items-start mb-4">
@@ -62,61 +62,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import TrafficCongestionMap from '../components/TrafficCongestionMap.vue'
+import { trafficLocations } from '../../shared/data/mobilityData'
+import { api } from '../../shared/api/client'
 
 const searchQuery = ref('')
 const filterLevel = ref('')
-
-const trafficLocations = ref([
-  {
-    id: 1,
-    name: 'MT Haryono Simpang Wika',
-    description: 'Simpang utama kota',
-    level: 'heavy',
-    density: 85,
-    avgSpeed: 10
-  },
-  {
-    id: 2,
-    name: 'Jl. Soekarno Hatta',
-    description: 'Ruas utama menuju bandara',
-    level: 'medium',
-    density: 65,
-    avgSpeed: 25
-  },
-  {
-    id: 3,
-    name: 'Jl. Ahmad Yani',
-    description: 'Kawasan perdagangan',
-    level: 'light',
-    density: 35,
-    avgSpeed: 50
-  },
-  {
-    id: 4,
-    name: 'Jl. Gatot Subroto',
-    description: 'Jalan penghubung',
-    level: 'medium',
-    density: 55,
-    avgSpeed: 35
-  },
-  {
-    id: 5,
-    name: 'Grand City - MT Haryono',
-    description: 'Akses mal utama',
-    level: 'heavy',
-    density: 78,
-    avgSpeed: 15
-  },
-  {
-    id: 6,
-    name: 'Jl. Imam Bonjol',
-    description: 'Jalan residential',
-    level: 'light',
-    density: 20,
-    avgSpeed: 55
-  }
-])
+const locations = ref(trafficLocations)
 
 const levelLabels = {
   heavy: 'Berat',
@@ -137,12 +90,20 @@ const progressColors = {
 }
 
 const filteredLocations = computed(() => {
-  return trafficLocations.value.filter(location => {
+  return locations.value.filter(location => {
     const matchesSearch = location.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
                          location.description.toLowerCase().includes(searchQuery.value.toLowerCase())
     const matchesFilter = !filterLevel.value || location.level === filterLevel.value
     return matchesSearch && matchesFilter
   })
+})
+
+onMounted(async () => {
+  try {
+    locations.value = await api.getAdminTraffic()
+  } catch {
+    locations.value = trafficLocations
+  }
 })
 </script>
 

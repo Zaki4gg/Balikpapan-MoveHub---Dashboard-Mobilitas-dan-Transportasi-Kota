@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <section v-if="mode === 'public'" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div class="mb-5">
         <p class="text-sm font-semibold text-cyan-700">Laporan Warga</p>
         <h2 class="mt-1 text-xl font-bold text-slate-950">Kirim Laporan Baru</h2>
@@ -59,33 +59,15 @@
       </form>
     </section>
 
-    <section v-if="mode === 'admin'" class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-500">Laporan Baru</p>
-        <p class="mt-2 text-3xl font-bold text-blue-600">{{ statusCounts.new }}</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-500">Sedang Ditangani</p>
-        <p class="mt-2 text-3xl font-bold text-amber-600">{{ statusCounts.inProgress }}</p>
-      </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-medium text-slate-500">Selesai</p>
-        <p class="mt-2 text-3xl font-bold text-emerald-600">{{ statusCounts.resolved }}</p>
-      </div>
-    </section>
-
     <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p class="text-sm font-semibold text-cyan-700">{{ mode === 'admin' ? 'Moderasi' : 'Status Laporan' }}</p>
-          <h2 class="mt-1 text-xl font-bold text-slate-950">{{ mode === 'admin' ? 'Kelola Laporan Masyarakat' : 'Laporan Terbaru' }}</h2>
+          <p class="text-sm font-semibold text-cyan-700">Status Laporan</p>
+          <h2 class="mt-1 text-xl font-bold text-slate-950">Laporan Terbaru</h2>
         </div>
 
         <div class="flex flex-wrap gap-3">
-          <select
-            v-model="filterType"
-            class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
+          <select v-model="filterType" class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
             <option value="">Semua Tipe</option>
             <option value="congestion">Kemacetan</option>
             <option value="accident">Kecelakaan</option>
@@ -93,10 +75,7 @@
             <option value="maintenance">Perbaikan</option>
             <option value="other">Lainnya</option>
           </select>
-          <select
-            v-model="filterStatus"
-            class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-          >
+          <select v-model="filterStatus" class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
             <option value="">Semua Status</option>
             <option value="new">Baru</option>
             <option value="in-progress">Sedang Ditangani</option>
@@ -131,20 +110,6 @@
             <span>Reporter: {{ report.reporter }}</span>
             <span>{{ report.responses }} respons</span>
           </div>
-
-          <div v-if="mode === 'admin'" class="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <label class="text-sm font-semibold text-slate-700">
-              Ubah Status
-              <select v-model="report.status" class="ml-0 mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm sm:ml-3 sm:mt-0">
-                <option value="new">Baru</option>
-                <option value="in-progress">Sedang Ditangani</option>
-                <option value="resolved">Selesai</option>
-              </select>
-            </label>
-            <button type="button" class="rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-              Tandai Ditindaklanjuti
-            </button>
-          </div>
         </article>
       </div>
     </section>
@@ -152,14 +117,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-
-defineProps({
-  mode: {
-    type: String,
-    default: 'admin'
-  }
-})
+import { computed, onMounted, ref } from 'vue'
+import { api } from '../../shared/api/client'
 
 const newReport = ref({
   type: '',
@@ -172,7 +131,7 @@ const filterType = ref('')
 const filterStatus = ref('')
 const successMessage = ref('')
 
-const reports = ref([
+const fallbackReports = [
   {
     id: 1,
     type: 'congestion',
@@ -228,7 +187,9 @@ const reports = ref([
     reporter: 'Ahmad M.',
     responses: 2
   }
-])
+]
+
+const reports = ref(fallbackReports)
 
 const typeLabels = {
   congestion: 'Kemacetan',
@@ -278,30 +239,41 @@ const filteredReports = computed(() => {
   })
 })
 
-const statusCounts = computed(() => ({
-  new: reports.value.filter(report => report.status === 'new').length,
-  inProgress: reports.value.filter(report => report.status === 'in-progress').length,
-  resolved: reports.value.filter(report => report.status === 'resolved').length
-}))
-
-const submitReport = () => {
+const submitReport = async () => {
   if (!newReport.value.type || !newReport.value.location || !newReport.value.description) {
     return
   }
 
-  reports.value.unshift({
-    id: Date.now(),
+  const payload = {
     type: newReport.value.type,
     location: newReport.value.location,
     description: newReport.value.description,
     priority: newReport.value.priority,
-    status: 'new',
-    time: 'Baru saja',
-    reporter: 'Anda',
-    responses: 0
-  })
+    reporter: 'Anda'
+  }
+
+  try {
+    const createdReport = await api.createReport(payload)
+    reports.value.unshift(createdReport)
+  } catch {
+    reports.value.unshift({
+      id: Date.now(),
+      ...payload,
+      status: 'new',
+      time: 'Baru saja',
+      responses: 0
+    })
+  }
 
   newReport.value = { type: '', location: '', description: '', priority: 'medium' }
   successMessage.value = 'Laporan berhasil dikirim dan masuk status Baru.'
 }
+
+onMounted(async () => {
+  try {
+    reports.value = await api.getPublicReports()
+  } catch {
+    reports.value = fallbackReports
+  }
+})
 </script>

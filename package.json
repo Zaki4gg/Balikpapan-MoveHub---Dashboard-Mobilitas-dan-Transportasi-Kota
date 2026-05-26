@@ -5,8 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "node backend/server.js",
+    "dev:public": "vite --host 127.0.0.1 --port 5173",
+    "dev:admin": "vite --host 127.0.0.1 --port 5174",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:public": "vite build --config vite.public.config.js",
+    "build:admin": "vite build --config vite.admin.config.js",
+    "preview": "vite preview",
+    "preview:public": "vite preview --outDir dist-public --host 127.0.0.1 --port 4173",
+    "preview:admin": "vite preview --outDir dist-admin --host 127.0.0.1 --port 4174"
   },
   "dependencies": {
     "axios": "^1.16.1",
