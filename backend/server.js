@@ -1,6 +1,6 @@
 import http from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -14,6 +14,33 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const DATA_DIR = path.join(__dirname, 'data')
 const DB_FILE = path.join(DATA_DIR, 'smart-mobility-store.json')
+const ENV_FILE = path.join(__dirname, '..', '.env')
+const ROAD_NETWORK_FILE = path.join(__dirname, '..', 'public', 'data', 'balikpapan-road-network.geojson')
+const TRANSIT_NETWORK_FILE = path.join(__dirname, '..', 'public', 'data', 'bacitra-route-network.geojson')
+
+const loadEnvFile = () => {
+  if (!existsSync(ENV_FILE)) {
+    return
+  }
+
+  const lines = readFileSync(ENV_FILE, 'utf8').split(/\r?\n/)
+
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) {
+      return
+    }
+
+    const [key, ...valueParts] = trimmed.split('=')
+
+    if (!process.env[key]) {
+      process.env[key] = valueParts.join('=').trim()
+    }
+  })
+}
+
+loadEnvFile()
 
 const PORT = Number(process.env.PORT || 4000)
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'smart-admin-demo'
@@ -93,6 +120,20 @@ let store = {
   buses: structuredClone(seedBuses)
 }
 
+let roadNetwork = {
+  type: 'FeatureCollection',
+  name: 'Jaringan Jalan Balikpapan',
+  source: ROAD_NETWORK_FILE,
+  features: []
+}
+
+let transitNetwork = {
+  type: 'FeatureCollection',
+  name: 'Rute Bacitra Balikpapan',
+  source: TRANSIT_NETWORK_FILE,
+  features: []
+}
+
 const sseClients = new Set()
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
@@ -131,10 +172,47 @@ const requireAdmin = (request, response) => {
   return false
 }
 
+const loadRoadNetwork = async () => {
+  const raw = await readFile(ROAD_NETWORK_FILE, 'utf8')
+  roadNetwork = JSON.parse(raw)
+}
+
+const loadTransitNetwork = async () => {
+  const raw = await readFile(TRANSIT_NETWORK_FILE, 'utf8')
+  transitNetwork = JSON.parse(raw)
+}
+
+const getRoadSegment = (roadFeatureId) => {
+  const feature = roadNetwork.features.find((item) => item.id === roadFeatureId)
+  return feature?.geometry?.coordinates || []
+}
+
+const syncTrafficGeometry = (trafficItems) => {
+  const seedById = new Map(seedTraffic.map((location) => [location.id, location]))
+
+  return trafficItems.map((location) => {
+    const seedLocation = seedById.get(location.id)
+
+    if (!seedLocation) {
+      return location
+    }
+
+    return {
+      ...location,
+      name: seedLocation.name,
+      description: seedLocation.description,
+      roadFeatureId: seedLocation.roadFeatureId,
+      coordinates: structuredClone(seedLocation.coordinates),
+      segment: structuredClone(getRoadSegment(seedLocation.roadFeatureId))
+    }
+  })
+}
+
 const loadStore = async () => {
   await mkdir(DATA_DIR, { recursive: true })
 
   if (!existsSync(DB_FILE)) {
+    store.traffic = syncTrafficGeometry(store.traffic)
     await saveStore()
     return
   }
@@ -144,7 +222,7 @@ const loadStore = async () => {
   store = {
     ...store,
     ...parsed,
-    traffic: parsed.traffic?.length ? parsed.traffic : structuredClone(seedTraffic),
+    traffic: parsed.traffic?.length ? syncTrafficGeometry(parsed.traffic) : structuredClone(seedTraffic),
     routes: parsed.routes?.length ? parsed.routes : structuredClone(seedRoutes),
     buses: parsed.buses?.length ? parsed.buses : structuredClone(seedBuses)
   }
@@ -164,13 +242,88 @@ const publicReports = () => store.reports.map((report) => ({
   status: report.status,
   time: report.time,
   reporter: report.reporter,
-  responses: report.responses
+  responses: report.responses,
+  evidence: report.evidence || null
 }))
+
+const hourlyDensityPattern = [
+  14, 11, 9, 8, 12, 24, 48, 69, 78, 62, 51, 57,
+  64, 58, 53, 61, 74, 86, 82, 66, 49, 38, 28, 19
+]
+
+const routePerformancePattern = [1.08, 1.16, 0.92, 1.02]
 
 const buildStats = () => {
   const highest = store.traffic.reduce((current, item) => item.density > current.density ? item : current, store.traffic[0])
   const totalPassengers = store.routes.reduce((total, route) => total + route.passengers, 0)
   const activeReports = store.reports.filter(report => report.status !== 'resolved').length
+  const averageDensity = Math.round(store.traffic.reduce((total, item) => total + item.density, 0) / Math.max(store.traffic.length, 1))
+  const hourlyAdjustment = Math.round((averageDensity - 58) * 0.45)
+  const trafficDensity = hourlyDensityPattern.map((density, hour) => ({
+    hour,
+    label: String(hour).padStart(2, '0'),
+    density: clamp(density + hourlyAdjustment, 5, 96)
+  }))
+  const transitUsage = store.routes.map((route, index) => {
+    const activeBuses = store.buses.filter((bus) => bus.routeId === route.id)
+    const loadAverage = activeBuses.length
+      ? Math.round(activeBuses.reduce((total, bus) => total + (bus.passengers / bus.capacity), 0) / activeBuses.length * 100)
+      : 0
+
+    return {
+      id: route.id,
+      label: route.shortName,
+      name: route.name,
+      route: route.route,
+      passengers: route.passengers,
+      fleet: route.fleet,
+      onTime: route.onTime,
+      loadAverage,
+      color: route.color
+    }
+  })
+  const routePopularity = transitUsage
+    .map((route, index) => ({
+      ...route,
+      score: Math.round(route.passengers * routePerformancePattern[index % routePerformancePattern.length])
+    }))
+    .sort((a, b) => b.score - a.score)
+  const peakHours = [
+    {
+      id: 'morning',
+      label: 'Pagi',
+      time: '06:00-09:00',
+      density: Math.round(trafficDensity.slice(6, 10).reduce((total, item) => total + item.density, 0) / 4)
+    },
+    {
+      id: 'midday',
+      label: 'Siang',
+      time: '11:00-13:00',
+      density: Math.round(trafficDensity.slice(11, 14).reduce((total, item) => total + item.density, 0) / 3)
+    },
+    {
+      id: 'evening',
+      label: 'Sore',
+      time: '16:00-19:00',
+      density: Math.round(trafficDensity.slice(16, 20).reduce((total, item) => total + item.density, 0) / 4)
+    },
+    {
+      id: 'night',
+      label: 'Malam',
+      time: '19:00-23:00',
+      density: Math.round(trafficDensity.slice(19, 24).reduce((total, item) => total + item.density, 0) / 5)
+    }
+  ]
+  const statusBreakdown = {
+    new: store.reports.filter(report => report.status === 'new').length,
+    inProgress: store.reports.filter(report => report.status === 'in-progress').length,
+    resolved: store.reports.filter(report => report.status === 'resolved').length
+  }
+  const weeklySummary = {
+    incidents: weeklyReports.reduce((total, day) => total + day.incidents, 0),
+    avgHandlingTime: Math.round(weeklyReports.reduce((total, day) => total + day.avgTime, 0) / weeklyReports.length),
+    busiestDay: weeklyReports.reduce((current, day) => day.incidents > current.incidents ? day : current, weeklyReports[0])
+  }
 
   return {
     summary: {
@@ -178,15 +331,18 @@ const buildStats = () => {
       publicTransitPassengers: totalPassengers,
       highestDensity: highest?.density || 0,
       highestDensityLocation: highest?.name || '-',
-      activeReports
+      activeReports,
+      averageDensity,
+      activeBuses: store.buses.length,
+      resolvedReports: statusBreakdown.resolved
     },
-    trafficDensity: [15, 12, 10, 35, 55, 65, 72, 68, 85, 78, 55, 30],
-    transitUsage: store.routes.map(route => ({
-      label: route.shortName,
-      passengers: route.passengers,
-      color: route.color
-    })),
-    weeklyReports
+    trafficDensity,
+    transitUsage,
+    routePopularity,
+    peakHours,
+    statusBreakdown,
+    weeklyReports,
+    weeklySummary
   }
 }
 
@@ -259,6 +415,21 @@ const handleApi = async (request, response) => {
     return
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/public/buses') {
+    sendJson(response, 200, { data: store.buses })
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/public/road-network') {
+    sendJson(response, 200, { data: roadNetwork })
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/public/transit-network') {
+    sendJson(response, 200, { data: transitNetwork })
+    return
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/public/reports') {
     sendJson(response, 200, { data: publicReports() })
     return
@@ -282,6 +453,7 @@ const handleApi = async (request, response) => {
       time: 'Baru saja',
       reporter: body.reporter || 'Warga',
       responses: 0,
+      evidence: body.evidence || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -331,8 +503,18 @@ const handleApi = async (request, response) => {
     return
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/road-network') {
+    sendJson(response, 200, { data: roadNetwork })
+    return
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/admin/routes') {
     sendJson(response, 200, { data: store.routes })
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/transit-network') {
+    sendJson(response, 200, { data: transitNetwork })
     return
   }
 
@@ -356,6 +538,8 @@ const server = http.createServer((request, response) => {
   })
 })
 
+await loadRoadNetwork()
+await loadTransitNetwork()
 await loadStore()
 server.listen(PORT, () => {
   console.log(`Smart Mobility backend berjalan di http://127.0.0.1:${PORT}`)

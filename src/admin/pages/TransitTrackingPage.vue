@@ -1,34 +1,34 @@
 <template>
   <div class="space-y-6">
     <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="card p-4">
         <p class="text-sm text-slate-600">Total Armada</p>
         <p class="mt-2 text-3xl font-bold text-blue-600">156</p>
         <p class="mt-1 text-xs text-slate-500">Unit Operasional</p>
       </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="card p-4">
         <p class="text-sm text-slate-600">Operasional</p>
         <p class="mt-2 text-3xl font-bold text-green-600">148</p>
         <p class="mt-1 text-xs text-slate-500">95% Availability</p>
       </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="card p-4">
         <p class="text-sm text-slate-600">Dalam Perbaikan</p>
         <p class="mt-2 text-3xl font-bold text-yellow-600">5</p>
         <p class="mt-1 text-xs text-slate-500">Maintenance</p>
       </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="card p-4">
         <p class="text-sm text-slate-600">Penumpang Hari Ini</p>
         <p class="mt-2 text-3xl font-bold text-indigo-600">8.4K</p>
         <p class="mt-1 text-xs text-slate-500">Estimasi</p>
       </div>
     </div>
 
-    <TransitRouteMap />
+    <TransitRouteMap :routes="routes" :buses="buses" :transit-network="transitNetwork" />
 
-    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="card p-6">
       <h2 class="mb-4 text-xl font-bold text-slate-950">Rute Operasional</h2>
       <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div v-for="route in routes" :key="route.id" class="rounded-xl border border-slate-200 p-4">
+        <div v-for="route in routes" :key="route.id" class="card p-4">
           <div class="mb-3 flex items-start justify-between gap-3">
             <div>
               <h3 class="font-bold text-slate-950">{{ route.name }}</h3>
@@ -65,7 +65,7 @@
       </div>
     </section>
 
-    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="card p-6">
       <h2 class="mb-4 text-xl font-bold text-slate-950">Pelacakan Real-time</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -109,19 +109,19 @@
         </div>
 
         <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div class="rounded-lg bg-slate-50 p-4">
+          <div class="metric-box p-4">
             <p class="text-xs text-slate-500">Armada</p>
             <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.fleet }}</p>
           </div>
-          <div class="rounded-lg bg-slate-50 p-4">
+          <div class="metric-box p-4">
             <p class="text-xs text-slate-500">Penumpang</p>
             <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.passengers }}</p>
           </div>
-          <div class="rounded-lg bg-slate-50 p-4">
+          <div class="metric-box p-4">
             <p class="text-xs text-slate-500">On Time</p>
             <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.onTime }}%</p>
           </div>
-          <div class="rounded-lg bg-slate-50 p-4">
+          <div class="metric-box p-4">
             <p class="text-xs text-slate-500">ETA Simulasi</p>
             <p class="mt-1 text-xl font-bold text-slate-950">{{ selectedRoute.eta }}</p>
           </div>
@@ -156,10 +156,12 @@
 import { computed, onMounted, ref } from 'vue'
 import TransitRouteMap from '../components/TransitRouteMap.vue'
 import { activeBuses, transitRoutes } from '../../shared/data/mobilityData'
+import { emptyTransitNetwork, TRANSIT_NETWORK_GEOJSON_PATH } from '../../shared/data/roadNetworkData.js'
 import { api } from '../../shared/api/client'
 
 const routes = ref(transitRoutes)
 const buses = ref(activeBuses)
+const transitNetwork = ref(emptyTransitNetwork)
 const selectedRoute = ref(null)
 
 const selectedRouteBuses = computed(() => {
@@ -174,17 +176,34 @@ const showRouteDetail = (route) => {
   selectedRoute.value = route
 }
 
+const loadLocalTransitNetwork = async () => {
+  const response = await fetch(TRANSIT_NETWORK_GEOJSON_PATH)
+
+  if (!response.ok) {
+    throw new Error('Gagal memuat GeoJSON rute Bacitra lokal.')
+  }
+
+  return response.json()
+}
+
 onMounted(async () => {
   try {
-    const [routeItems, busItems] = await Promise.all([
+    const [routeItems, busItems, transitNetworkData] = await Promise.all([
       api.getAdminRoutes(),
-      api.getAdminBuses()
+      api.getAdminBuses(),
+      api.getAdminTransitNetwork()
     ])
     routes.value = routeItems
     buses.value = busItems
+    transitNetwork.value = transitNetworkData
   } catch {
     routes.value = transitRoutes
     buses.value = activeBuses
+    try {
+      transitNetwork.value = await loadLocalTransitNetwork()
+    } catch {
+      transitNetwork.value = emptyTransitNetwork
+    }
   }
 })
 </script>

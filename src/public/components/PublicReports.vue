@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="card p-6">
       <div class="mb-5">
         <p class="text-sm font-semibold text-cyan-700">Laporan Warga</p>
         <h2 class="mt-1 text-xl font-bold text-slate-950">Kirim Laporan Baru</h2>
@@ -9,7 +9,7 @@
       <form @submit.prevent="submitReport" class="grid gap-4 lg:grid-cols-2">
         <div>
           <label class="mb-2 block text-sm font-semibold text-slate-800">Tipe Laporan</label>
-          <select v-model="newReport.type" class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500" required>
+          <select v-model="newReport.type" class="form-input" required>
             <option value="">Pilih Tipe Laporan</option>
             <option value="congestion">Kemacetan</option>
             <option value="accident">Kecelakaan</option>
@@ -21,7 +21,7 @@
 
         <div>
           <label class="mb-2 block text-sm font-semibold text-slate-800">Prioritas</label>
-          <select v-model="newReport.priority" class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          <select v-model="newReport.priority" class="form-input">
             <option value="low">Rendah</option>
             <option value="medium">Sedang</option>
             <option value="high">Tinggi</option>
@@ -34,7 +34,7 @@
             v-model="newReport.location"
             type="text"
             placeholder="Masukkan nama jalan atau lokasi"
-            class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            class="form-input"
             required
           />
         </div>
@@ -45,9 +45,76 @@
             v-model="newReport.description"
             placeholder="Jelaskan kondisi yang Anda alami"
             rows="4"
-            class="w-full rounded-lg border border-slate-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            class="form-input"
             required
           ></textarea>
+        </div>
+
+        <div class="lg:col-span-2">
+          <label class="mb-2 block text-sm font-semibold text-slate-800">Bukti Foto atau Video</label>
+          <div class="grid gap-4 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 lg:grid-cols-2">
+            <div
+              :class="[
+                'rounded-lg border border-dashed bg-white p-4 transition',
+                dragState.photo ? 'border-cyan-500 bg-cyan-50' : 'border-slate-300 hover:border-cyan-400'
+              ]"
+              @dragenter.prevent="setDragState('photo', true)"
+              @dragover.prevent="setDragState('photo', true)"
+              @dragleave.prevent="setDragState('photo', false)"
+              @drop.prevent="handleEvidenceDrop($event, 'photo')"
+            >
+              <input
+                ref="photoInput"
+                type="file"
+                accept="image/*"
+                class="sr-only"
+                @change="handlePhotoUpload"
+              />
+              <button type="button" class="flex min-h-28 w-full flex-col items-center justify-center rounded-md text-center" @click="photoInput?.click()">
+                <span class="text-sm font-bold text-slate-900">Tarik foto ke sini</span>
+                <span class="mt-1 text-xs text-slate-500">atau klik untuk memilih gambar</span>
+                <span class="mt-3 rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-700">Maksimal 1.5 MB</span>
+              </button>
+            </div>
+            <div
+              :class="[
+                'rounded-lg border border-dashed bg-white p-4 transition',
+                dragState.video ? 'border-violet-500 bg-violet-50' : 'border-slate-300 hover:border-violet-400'
+              ]"
+              @dragenter.prevent="setDragState('video', true)"
+              @dragover.prevent="setDragState('video', true)"
+              @dragleave.prevent="setDragState('video', false)"
+              @drop.prevent="handleEvidenceDrop($event, 'video')"
+            >
+              <input
+                ref="videoInput"
+                type="file"
+                accept="video/*"
+                class="sr-only"
+                @change="handleVideoUpload"
+              />
+              <button type="button" class="flex min-h-28 w-full flex-col items-center justify-center rounded-md text-center" @click="videoInput?.click()">
+                <span class="text-sm font-bold text-slate-900">Tarik video ke sini</span>
+                <span class="mt-1 text-xs text-slate-500">atau klik untuk memilih video</span>
+                <span class="mt-3 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Gimmick prototype</span>
+              </button>
+            </div>
+
+            <div v-if="newReport.evidence?.photo" class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <img :src="newReport.evidence.photo.dataUrl" :alt="newReport.evidence.photo.name" class="h-40 w-full object-cover" />
+              <div class="flex items-center justify-between gap-3 px-3 py-2 text-xs text-slate-600">
+                <span class="truncate">{{ newReport.evidence.photo.name }}</span>
+                <button type="button" class="font-semibold text-red-600 hover:text-red-700" @click="removePhotoEvidence">Hapus</button>
+              </div>
+            </div>
+
+            <div v-if="newReport.evidence?.video" class="rounded-lg border border-slate-200 bg-white p-3">
+              <p class="text-sm font-semibold text-slate-800">{{ newReport.evidence.video.name }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ formatBytes(newReport.evidence.video.size) }} - {{ newReport.evidence.video.status }}</p>
+              <button type="button" class="mt-3 text-xs font-semibold text-red-600 hover:text-red-700" @click="removeVideoEvidence">Hapus video</button>
+            </div>
+          </div>
+          <p v-if="uploadMessage" class="mt-2 text-sm font-semibold text-amber-700">{{ uploadMessage }}</p>
         </div>
 
         <div class="flex flex-col gap-3 lg:col-span-2 sm:flex-row sm:items-center">
@@ -59,15 +126,15 @@
       </form>
     </section>
 
-    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="card p-6">
       <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-sm font-semibold text-cyan-700">Status Laporan</p>
-          <h2 class="mt-1 text-xl font-bold text-slate-950">Laporan Terbaru</h2>
+          <h2 class="mt-1 text-xl font-bold text-slate-950">Laporan Belum Ditangani</h2>
         </div>
 
         <div class="flex flex-wrap gap-3">
-          <select v-model="filterType" class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          <select v-model="openFilterType" class="form-input text-sm">
             <option value="">Semua Tipe</option>
             <option value="congestion">Kemacetan</option>
             <option value="accident">Kecelakaan</option>
@@ -75,17 +142,16 @@
             <option value="maintenance">Perbaikan</option>
             <option value="other">Lainnya</option>
           </select>
-          <select v-model="filterStatus" class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          <select v-model="openFilterStatus" class="form-input text-sm">
             <option value="">Semua Status</option>
             <option value="new">Baru</option>
             <option value="in-progress">Sedang Ditangani</option>
-            <option value="resolved">Selesai</option>
           </select>
         </div>
       </div>
 
       <div class="space-y-4">
-        <article v-for="report in filteredReports" :key="report.id" class="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-cyan-200 hover:bg-white">
+        <article v-for="report in filteredOpenReports" :key="report.id" class="card p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
           <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h3 class="font-bold text-slate-950">{{ report.location }}</h3>
@@ -106,11 +172,71 @@
 
           <p class="mt-3 text-slate-700">{{ report.description }}</p>
 
+          <div v-if="report.evidence" class="mt-4 grid gap-3 md:grid-cols-2">
+            <div v-if="report.evidence.photo" class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <img :src="report.evidence.photo.dataUrl" :alt="report.evidence.photo.name" class="h-36 w-full object-cover" />
+              <p class="px-3 py-2 text-xs font-semibold text-slate-600">Foto bukti: {{ report.evidence.photo.name }}</p>
+            </div>
+            <div v-if="report.evidence.video" class="rounded-lg border border-slate-200 bg-white p-3">
+              <p class="text-sm font-semibold text-slate-800">Video bukti tersedia</p>
+              <p class="mt-1 text-xs text-slate-500">{{ report.evidence.video.name }} - {{ report.evidence.video.status }}</p>
+            </div>
+          </div>
+
           <div class="mt-4 flex flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
             <span>Reporter: {{ report.reporter }}</span>
             <span>{{ report.responses }} respons</span>
           </div>
         </article>
+        <p v-if="!filteredOpenReports.length" class="rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+          Tidak ada laporan belum ditangani pada filter ini.
+        </p>
+      </div>
+    </section>
+
+    <section class="card p-6">
+      <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-sm font-semibold text-emerald-700">Riwayat Penanganan</p>
+          <h2 class="mt-1 text-xl font-bold text-slate-950">Laporan Sudah Ditangani</h2>
+        </div>
+
+        <select v-model="resolvedFilterType" class="form-input text-sm">
+          <option value="">Semua Tipe</option>
+          <option value="congestion">Kemacetan</option>
+          <option value="accident">Kecelakaan</option>
+          <option value="hazard">Hambatan</option>
+          <option value="maintenance">Perbaikan</option>
+          <option value="other">Lainnya</option>
+        </select>
+      </div>
+
+      <div class="space-y-4">
+        <article v-for="report in filteredResolvedReports" :key="report.id" class="card p-4">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 class="font-bold text-slate-950">{{ report.location }}</h3>
+              <p class="mt-1 text-sm text-slate-600">{{ typeLabels[report.type] }} - {{ report.time }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span :class="['rounded-full px-3 py-1 text-xs font-semibold', typeColors[report.type]]">
+                {{ typeLabels[report.type] }}
+              </span>
+              <span :class="['rounded-full px-3 py-1 text-xs font-semibold', statusColors[report.status]]">
+                {{ statusLabels[report.status] }}
+              </span>
+            </div>
+          </div>
+
+          <p class="mt-3 text-slate-700">{{ report.description }}</p>
+          <div class="mt-4 flex flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+            <span>Reporter: {{ report.reporter }}</span>
+            <span>{{ report.responses }} respons</span>
+          </div>
+        </article>
+        <p v-if="!filteredResolvedReports.length" class="rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+          Belum ada laporan selesai pada filter ini.
+        </p>
       </div>
     </section>
   </div>
@@ -124,12 +250,24 @@ const newReport = ref({
   type: '',
   location: '',
   description: '',
-  priority: 'medium'
+  priority: 'medium',
+  evidence: {
+    photo: null,
+    video: null
+  }
 })
 
-const filterType = ref('')
-const filterStatus = ref('')
+const openFilterType = ref('')
+const openFilterStatus = ref('')
+const resolvedFilterType = ref('')
 const successMessage = ref('')
+const uploadMessage = ref('')
+const photoInput = ref(null)
+const videoInput = ref(null)
+const dragState = ref({
+  photo: false,
+  video: false
+})
 
 const fallbackReports = [
   {
@@ -231,13 +369,133 @@ const priorityColors = {
   'high': 'bg-red-100 text-red-700'
 }
 
-const filteredReports = computed(() => {
+const filteredOpenReports = computed(() => {
   return reports.value.filter(report => {
-    const matchesType = !filterType.value || report.type === filterType.value
-    const matchesStatus = !filterStatus.value || report.status === filterStatus.value
-    return matchesType && matchesStatus
+    const matchesType = !openFilterType.value || report.type === openFilterType.value
+    const matchesStatus = !openFilterStatus.value || report.status === openFilterStatus.value
+    return report.status !== 'resolved' && matchesType && matchesStatus
   })
 })
+
+const filteredResolvedReports = computed(() => {
+  return reports.value.filter(report => {
+    const matchesType = !resolvedFilterType.value || report.type === resolvedFilterType.value
+    return report.status === 'resolved' && matchesType
+  })
+})
+
+const formatBytes = (bytes = 0) => {
+  if (!bytes) {
+    return '0 KB'
+  }
+
+  const units = ['B', 'KB', 'MB']
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / (1024 ** index)
+  return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`
+}
+
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader()
+  reader.onload = () => resolve(reader.result)
+  reader.onerror = reject
+  reader.readAsDataURL(file)
+})
+
+const handlePhotoUpload = async (event) => {
+  const file = event.target.files?.[0]
+  await processPhotoFile(file)
+}
+
+const processPhotoFile = async (file) => {
+  uploadMessage.value = ''
+
+  if (!file) {
+    return
+  }
+
+  if (!file.type.startsWith('image/')) {
+    uploadMessage.value = 'File foto harus berupa gambar.'
+    return
+  }
+
+  if (file.size > 1.5 * 1024 * 1024) {
+    uploadMessage.value = 'Ukuran foto terlalu besar untuk prototype. Gunakan foto maksimal 1.5 MB.'
+
+    if (photoInput.value) {
+      photoInput.value.value = ''
+    }
+
+    return
+  }
+
+  const dataUrl = await readFileAsDataUrl(file)
+  newReport.value.evidence.photo = {
+    type: 'photo',
+    name: file.name,
+    size: file.size,
+    mimeType: file.type,
+    dataUrl
+  }
+}
+
+const handleVideoUpload = (event) => {
+  const file = event.target.files?.[0]
+  processVideoFile(file)
+}
+
+const processVideoFile = (file) => {
+  uploadMessage.value = ''
+
+  if (!file) {
+    return
+  }
+
+  if (!file.type.startsWith('video/')) {
+    uploadMessage.value = 'File video harus berupa video.'
+    return
+  }
+
+  newReport.value.evidence.video = {
+    type: 'video',
+    name: file.name,
+    size: file.size,
+    mimeType: file.type,
+    status: 'Simulasi upload video prototype'
+  }
+}
+
+const setDragState = (type, value) => {
+  dragState.value[type] = value
+}
+
+const handleEvidenceDrop = async (event, type) => {
+  setDragState(type, false)
+  const file = event.dataTransfer?.files?.[0]
+
+  if (type === 'photo') {
+    await processPhotoFile(file)
+    return
+  }
+
+  processVideoFile(file)
+}
+
+const removePhotoEvidence = () => {
+  newReport.value.evidence.photo = null
+
+  if (photoInput.value) {
+    photoInput.value.value = ''
+  }
+}
+
+const removeVideoEvidence = () => {
+  newReport.value.evidence.video = null
+
+  if (videoInput.value) {
+    videoInput.value.value = ''
+  }
+}
 
 const submitReport = async () => {
   if (!newReport.value.type || !newReport.value.location || !newReport.value.description) {
@@ -249,7 +507,10 @@ const submitReport = async () => {
     location: newReport.value.location,
     description: newReport.value.description,
     priority: newReport.value.priority,
-    reporter: 'Anda'
+    reporter: 'Anda',
+    evidence: newReport.value.evidence.photo || newReport.value.evidence.video
+      ? newReport.value.evidence
+      : null
   }
 
   try {
@@ -265,7 +526,26 @@ const submitReport = async () => {
     })
   }
 
-  newReport.value = { type: '', location: '', description: '', priority: 'medium' }
+  newReport.value = {
+    type: '',
+    location: '',
+    description: '',
+    priority: 'medium',
+    evidence: {
+      photo: null,
+      video: null
+    }
+  }
+
+  if (photoInput.value) {
+    photoInput.value.value = ''
+  }
+
+  if (videoInput.value) {
+    videoInput.value.value = ''
+  }
+
+  uploadMessage.value = ''
   successMessage.value = 'Laporan berhasil dikirim dan masuk status Baru.'
 }
 

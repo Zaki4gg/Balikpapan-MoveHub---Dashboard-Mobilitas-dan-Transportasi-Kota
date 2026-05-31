@@ -18,4 +18,7 @@ Kelebihan setup ini:
 ```bash
 npm install
 npm run dev
+npm.cmd run dev:backend ## backend
+npm.cmd run dev:public ## website dashboard publik
+npm.cmd run dev:admin ## website dashboard admin panel
 ```

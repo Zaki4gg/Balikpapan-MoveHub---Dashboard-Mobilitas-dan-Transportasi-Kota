@@ -24,6 +24,9 @@ export const api = {
   baseUrl: API_BASE_URL,
   getPublicTraffic: () => requestJson('/api/public/traffic'),
   getPublicRoutes: () => requestJson('/api/public/routes'),
+  getPublicRoadNetwork: () => requestJson('/api/public/road-network'),
+  getPublicTransitNetwork: () => requestJson('/api/public/transit-network'),
+  getPublicBuses: () => requestJson('/api/public/buses'),
   getPublicReports: () => requestJson('/api/public/reports'),
   createReport: (report) => requestJson('/api/public/reports', {
     method: 'POST',
@@ -36,7 +39,9 @@ export const api = {
     body: JSON.stringify({ status })
   }),
   getAdminTraffic: () => requestJson('/api/admin/traffic', { admin: true }),
+  getAdminRoadNetwork: () => requestJson('/api/admin/road-network', { admin: true }),
   getAdminRoutes: () => requestJson('/api/admin/routes', { admin: true }),
+  getAdminTransitNetwork: () => requestJson('/api/admin/transit-network', { admin: true }),
   getAdminBuses: () => requestJson('/api/admin/buses', { admin: true }),
   getAdminStats: () => requestJson('/api/admin/stats', { admin: true })
 }

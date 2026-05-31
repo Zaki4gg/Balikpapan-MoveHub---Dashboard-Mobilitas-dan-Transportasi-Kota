@@ -1,29 +1,29 @@
 <template>
   <div class="space-y-6">
     <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="card p-5">
         <p class="text-sm font-medium text-slate-500">Laporan Baru</p>
         <p class="mt-2 text-3xl font-bold text-blue-600">{{ statusCounts.new }}</p>
       </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="card p-5">
         <p class="text-sm font-medium text-slate-500">Sedang Ditangani</p>
         <p class="mt-2 text-3xl font-bold text-amber-600">{{ statusCounts.inProgress }}</p>
       </div>
-      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="card p-5">
         <p class="text-sm font-medium text-slate-500">Selesai</p>
         <p class="mt-2 text-3xl font-bold text-emerald-600">{{ statusCounts.resolved }}</p>
       </div>
     </section>
 
-    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section class="card p-6">
       <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p class="text-sm font-semibold text-cyan-700">Moderasi</p>
-          <h2 class="mt-1 text-xl font-bold text-slate-950">Kelola Laporan Masyarakat</h2>
+          <h2 class="mt-1 text-xl font-bold text-slate-950">Laporan Belum Ditangani</h2>
         </div>
 
         <div class="flex flex-wrap gap-3">
-          <select v-model="filterType" class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          <select v-model="openFilterType" class="form-input text-sm">
             <option value="">Semua Tipe</option>
             <option value="congestion">Kemacetan</option>
             <option value="accident">Kecelakaan</option>
@@ -31,17 +31,16 @@
             <option value="maintenance">Perbaikan</option>
             <option value="other">Lainnya</option>
           </select>
-          <select v-model="filterStatus" class="rounded-lg border border-slate-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          <select v-model="openFilterStatus" class="form-input text-sm">
             <option value="">Semua Status</option>
             <option value="new">Baru</option>
             <option value="in-progress">Sedang Ditangani</option>
-            <option value="resolved">Selesai</option>
           </select>
         </div>
       </div>
 
       <div class="space-y-4">
-        <article v-for="report in filteredReports" :key="report.id" class="rounded-xl border border-slate-200 bg-slate-50 p-4 transition hover:border-cyan-200 hover:bg-white">
+        <article v-for="report in filteredOpenReports" :key="report.id" class="card p-4 transition hover:-translate-y-0.5 hover:shadow-lg">
           <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h3 class="font-bold text-slate-950">{{ report.location }}</h3>
@@ -61,6 +60,21 @@
           </div>
 
           <p class="mt-3 text-slate-700">{{ report.description }}</p>
+
+          <div v-if="report.evidence" class="mt-4 grid gap-3 md:grid-cols-2">
+            <div v-if="report.evidence.photo" class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <img :src="report.evidence.photo.dataUrl" :alt="report.evidence.photo.name" class="h-40 w-full object-cover" />
+              <div class="px-3 py-2">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700">Foto Bukti</p>
+                <p class="mt-1 truncate text-sm font-semibold text-slate-800">{{ report.evidence.photo.name }}</p>
+              </div>
+            </div>
+            <div v-if="report.evidence.video" class="rounded-lg border border-slate-200 bg-white p-3">
+              <p class="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700">Video Bukti</p>
+              <p class="mt-2 text-sm font-semibold text-slate-800">{{ report.evidence.video.name }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ report.evidence.video.status }}</p>
+            </div>
+          </div>
 
           <div class="mt-4 flex flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
             <span>Reporter: {{ report.reporter }}</span>
@@ -90,6 +104,74 @@
             </p>
           </div>
         </article>
+        <p v-if="!filteredOpenReports.length" class="rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+          Tidak ada laporan belum ditangani pada filter ini.
+        </p>
+      </div>
+    </section>
+
+    <section class="card p-6">
+      <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-sm font-semibold text-emerald-700">Riwayat</p>
+          <h2 class="mt-1 text-xl font-bold text-slate-950">Laporan Sudah Ditangani</h2>
+        </div>
+
+        <select v-model="resolvedFilterType" class="form-input text-sm">
+          <option value="">Semua Tipe</option>
+          <option value="congestion">Kemacetan</option>
+          <option value="accident">Kecelakaan</option>
+          <option value="hazard">Hambatan</option>
+          <option value="maintenance">Perbaikan</option>
+          <option value="other">Lainnya</option>
+        </select>
+      </div>
+
+      <div class="space-y-4">
+        <article v-for="report in filteredResolvedReports" :key="report.id" class="card p-4">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 class="font-bold text-slate-950">{{ report.location }}</h3>
+              <p class="mt-1 text-sm text-slate-600">{{ typeLabels[report.type] }} - {{ report.time }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span :class="['rounded-full px-3 py-1 text-xs font-semibold', typeColors[report.type]]">
+                {{ typeLabels[report.type] }}
+              </span>
+              <span :class="['rounded-full px-3 py-1 text-xs font-semibold', statusColors[report.status]]">
+                {{ statusLabels[report.status] }}
+              </span>
+              <span :class="['rounded-full px-3 py-1 text-xs font-semibold', priorityColors[report.priority]]">
+                {{ priorityLabels[report.priority] }}
+              </span>
+            </div>
+          </div>
+
+          <p class="mt-3 text-slate-700">{{ report.description }}</p>
+
+          <div v-if="report.evidence" class="mt-4 grid gap-3 md:grid-cols-2">
+            <div v-if="report.evidence.photo" class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <img :src="report.evidence.photo.dataUrl" :alt="report.evidence.photo.name" class="h-40 w-full object-cover" />
+              <div class="px-3 py-2">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700">Foto Bukti</p>
+                <p class="mt-1 truncate text-sm font-semibold text-slate-800">{{ report.evidence.photo.name }}</p>
+              </div>
+            </div>
+            <div v-if="report.evidence.video" class="rounded-lg border border-slate-200 bg-white p-3">
+              <p class="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700">Video Bukti</p>
+              <p class="mt-2 text-sm font-semibold text-slate-800">{{ report.evidence.video.name }}</p>
+              <p class="mt-1 text-xs text-slate-500">{{ report.evidence.video.status }}</p>
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+            <span>Reporter: {{ report.reporter }}</span>
+            <span>{{ report.responses }} respons</span>
+          </div>
+        </article>
+        <p v-if="!filteredResolvedReports.length" class="rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+          Belum ada laporan selesai pada filter ini.
+        </p>
       </div>
     </section>
   </div>
@@ -99,8 +181,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../../shared/api/client'
 
-const filterType = ref('')
-const filterStatus = ref('')
+const openFilterType = ref('')
+const openFilterStatus = ref('')
+const resolvedFilterType = ref('')
 const actionMessage = ref('')
 const activeReportId = ref(null)
 
@@ -204,11 +287,18 @@ const priorityColors = {
   'high': 'bg-red-100 text-red-700'
 }
 
-const filteredReports = computed(() => {
+const filteredOpenReports = computed(() => {
   return reports.value.filter(report => {
-    const matchesType = !filterType.value || report.type === filterType.value
-    const matchesStatus = !filterStatus.value || report.status === filterStatus.value
-    return matchesType && matchesStatus
+    const matchesType = !openFilterType.value || report.type === openFilterType.value
+    const matchesStatus = !openFilterStatus.value || report.status === openFilterStatus.value
+    return report.status !== 'resolved' && matchesType && matchesStatus
+  })
+})
+
+const filteredResolvedReports = computed(() => {
+  return reports.value.filter(report => {
+    const matchesType = !resolvedFilterType.value || report.type === resolvedFilterType.value
+    return report.status === 'resolved' && matchesType
   })
 })
 

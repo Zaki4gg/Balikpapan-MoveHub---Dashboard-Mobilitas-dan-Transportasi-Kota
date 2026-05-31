@@ -1,5 +1,5 @@
 <template>
-  <div class="h-[30rem] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+  <div class="card h-[30rem] overflow-hidden">
     <div class="relative h-full">
       <div ref="mapContainer" class="h-full w-full"></div>
 

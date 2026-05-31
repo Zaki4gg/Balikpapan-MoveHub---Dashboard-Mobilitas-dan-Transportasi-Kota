@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-screen bg-slate-100 text-slate-900">
+  <div class="app-shell public-shell flex min-h-screen bg-slate-100 text-slate-900">
     <div class="flex min-w-0 flex-1 flex-col">
       <PublicHeader
         :title="pageTitle"
@@ -9,8 +9,9 @@
       />
       <PublicNavbar :active-page="currentPage" />
 
-      <main class="min-h-0 flex-1 overflow-auto px-5 py-6 sm:px-8 lg:px-10">
+      <main class="app-main public-main min-h-0 flex-1 overflow-auto px-5 py-6 sm:px-8 lg:px-10">
         <PublicTrafficPage v-if="currentPage === 'traffic'" />
+        <PublicCctvPage v-else-if="currentPage === 'traffic-cctv'" />
         <PublicTransitPage v-else-if="currentPage === 'transit'" />
         <PublicReportsPage v-else-if="currentPage === 'reports'" />
         <PublicPortalPage v-else />
@@ -25,12 +26,14 @@ import PublicHeader from './public/components/PublicHeader.vue'
 import PublicNavbar from './public/components/PublicNavbar.vue'
 import PublicPortalPage from './public/pages/PublicPortalPage.vue'
 import PublicTrafficPage from './public/pages/PublicTrafficPage.vue'
+import PublicCctvPage from './public/pages/PublicCctvPage.vue'
 import PublicTransitPage from './public/pages/PublicTransitPage.vue'
 import PublicReportsPage from './public/pages/PublicReportsPage.vue'
 
 const routeMap = {
   '/': 'home',
   '/traffic': 'traffic',
+  '/traffic/cctv': 'traffic-cctv',
   '/transit': 'transit',
   '/reports': 'reports'
 }
@@ -46,6 +49,7 @@ const pageTitle = computed(() => {
   const titles = {
     home: 'Portal Publik Smart Mobility',
     traffic: 'Kondisi Lalu Lintas Kota',
+    'traffic-cctv': 'Pantauan CCTV Balikpapan Kota',
     transit: 'Rute Bacitra Balikpapan',
     reports: 'Laporan Warga'
   }

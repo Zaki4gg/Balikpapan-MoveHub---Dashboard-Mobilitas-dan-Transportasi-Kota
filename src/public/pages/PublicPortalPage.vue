@@ -1,7 +1,33 @@
 <template>
   <section class="space-y-6">
+    <div class="card card-accent public-hero p-5">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">Portal Mobilitas Warga</p>
+          <h2 class="mt-1 text-2xl font-black text-slate-950">Pantauan perjalanan Balikpapan</h2>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Lihat kondisi ruas utama, pilih rute Bacitra yang sedang beroperasi, dan kirim laporan bila menemukan hambatan di jalan.
+          </p>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-center sm:min-w-80">
+          <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2">
+            <p class="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-700">Bacitra</p>
+            <p class="text-sm font-black text-slate-950">Aktif</p>
+          </div>
+          <div class="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2">
+            <p class="text-[0.65rem] font-bold uppercase tracking-wide text-cyan-700">Peta</p>
+            <p class="text-sm font-black text-slate-950">Lokal</p>
+          </div>
+          <div class="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2">
+            <p class="text-[0.65rem] font-bold uppercase tracking-wide text-amber-700">Data</p>
+            <p class="text-sm font-black text-slate-950">Demo</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-      <div v-for="item in publicStats" :key="item.label" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div v-for="item in publicStats" :key="item.label" class="public-stat-card p-5">
         <p class="text-sm font-medium text-slate-500">{{ item.label }}</p>
         <div class="mt-3 flex items-end gap-2">
           <p class="text-3xl font-bold text-slate-950">{{ item.value }}</p>
@@ -16,14 +42,14 @@
         <PublicMap />
       </div>
 
-      <aside class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <aside class="card p-6">
         <div class="mb-5">
-          <p class="text-sm font-semibold text-cyan-700">Info Cepat</p>
+          <p class="text-xs font-black uppercase tracking-[0.13em] text-cyan-700">Info Cepat</p>
           <h2 class="mt-1 text-xl font-bold text-slate-950">Kondisi Jalan Utama</h2>
         </div>
 
         <div class="space-y-3">
-          <div v-for="road in roads" :key="road.name" class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+          <div v-for="road in roads" :key="road.name" class="public-list-item p-4">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <p class="font-semibold text-slate-950">{{ road.name }}</p>
@@ -37,14 +63,14 @@
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-      <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-1">
+      <section class="card p-6 xl:col-span-1">
         <div class="mb-5">
-          <p class="text-sm font-semibold text-cyan-700">Transportasi Publik</p>
+          <p class="text-xs font-black uppercase tracking-[0.13em] text-cyan-700">Transportasi Publik</p>
           <h2 class="mt-1 text-xl font-bold text-slate-950">Rute Bacitra</h2>
         </div>
 
         <div class="space-y-3">
-          <div v-for="route in routes" :key="route.name" class="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+          <div v-for="route in routes" :key="route.name" class="public-list-item flex items-center justify-between gap-4 px-4 py-3">
             <div>
               <p class="font-semibold text-slate-950">{{ route.name }}</p>
               <p class="text-xs text-slate-500">{{ route.nextArrival }}</p>
@@ -59,9 +85,9 @@
         </div>
       </section>
 
-      <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+      <section class="card p-6 xl:col-span-2">
         <div class="mb-5">
-          <p class="text-sm font-semibold text-cyan-700">Prioritas Hari Ini</p>
+          <p class="text-xs font-black uppercase tracking-[0.13em] text-cyan-700">Prioritas Hari Ini</p>
           <h2 class="mt-1 text-xl font-bold text-slate-950">Rekomendasi Mobilitas</h2>
         </div>
 
@@ -112,7 +138,7 @@ const mapRoads = (items) => items.slice(0, 3).map((road) => ({
 }))
 
 const mapRoutes = (items) => items.map((route) => ({
-  name: route.shortName,
+  name: route.shortName.replace('Route', 'Rute'),
   nextArrival: `${route.route} - tiba ${route.eta}`,
   status: route.status === 'active' ? 'Operasional' : 'Tunda'
 }))

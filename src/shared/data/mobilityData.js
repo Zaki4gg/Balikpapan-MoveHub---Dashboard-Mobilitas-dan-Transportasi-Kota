@@ -6,15 +6,10 @@ export const trafficLocations = [
     level: 'heavy',
     density: 85,
     avgSpeed: 10,
-    coordinates: [116.8333, -1.2667],
+    coordinates: [116.8474, -1.2649],
     color: '#ef4444',
-    segment: [
-      [116.8248, -1.2706],
-      [116.8292, -1.2688],
-      [116.8333, -1.2667],
-      [116.838, -1.2638],
-      [116.8424, -1.261]
-    ]
+    roadFeatureId: 'road-mt-haryono-wika',
+    segment: []
   },
   {
     id: 2,
@@ -23,15 +18,10 @@ export const trafficLocations = [
     level: 'medium',
     density: 65,
     avgSpeed: 25,
-    coordinates: [116.85, -1.25],
+    coordinates: [116.8589, -1.2406],
     color: '#f59e0b',
-    segment: [
-      [116.842, -1.255],
-      [116.846, -1.2525],
-      [116.85, -1.25],
-      [116.856, -1.247],
-      [116.861, -1.244]
-    ]
+    roadFeatureId: 'road-soekarno-hatta',
+    segment: []
   },
   {
     id: 3,
@@ -40,15 +30,10 @@ export const trafficLocations = [
     level: 'light',
     density: 35,
     avgSpeed: 50,
-    coordinates: [116.82, -1.24],
+    coordinates: [116.8426, -1.2423],
     color: '#10b981',
-    segment: [
-      [116.812, -1.243],
-      [116.816, -1.2415],
-      [116.82, -1.24],
-      [116.824, -1.2385],
-      [116.828, -1.237]
-    ]
+    roadFeatureId: 'road-ahmad-yani',
+    segment: []
   },
   {
     id: 4,
@@ -57,15 +42,10 @@ export const trafficLocations = [
     level: 'medium',
     density: 55,
     avgSpeed: 35,
-    coordinates: [116.825, -1.245],
+    coordinates: [116.837, -1.2496],
     color: '#f59e0b',
-    segment: [
-      [116.818, -1.249],
-      [116.821, -1.247],
-      [116.825, -1.245],
-      [116.829, -1.243],
-      [116.833, -1.241]
-    ]
+    roadFeatureId: 'road-gatot-subroto',
+    segment: []
   },
   {
     id: 5,
@@ -74,15 +54,10 @@ export const trafficLocations = [
     level: 'heavy',
     density: 78,
     avgSpeed: 15,
-    coordinates: [116.845, -1.255],
+    coordinates: [116.8487, -1.2568],
     color: '#ef4444',
-    segment: [
-      [116.838, -1.259],
-      [116.841, -1.257],
-      [116.845, -1.255],
-      [116.849, -1.253],
-      [116.853, -1.251]
-    ]
+    roadFeatureId: 'road-grand-city-mt-haryono',
+    segment: []
   },
   {
     id: 6,
@@ -91,15 +66,10 @@ export const trafficLocations = [
     level: 'light',
     density: 20,
     avgSpeed: 55,
-    coordinates: [116.815, -1.252],
+    coordinates: [116.8445, -1.2448],
     color: '#10b981',
-    segment: [
-      [116.808, -1.255],
-      [116.811, -1.2537],
-      [116.815, -1.252],
-      [116.819, -1.2505],
-      [116.823, -1.249]
-    ]
+    roadFeatureId: 'road-imam-bonjol',
+    segment: []
   }
 ]
 
