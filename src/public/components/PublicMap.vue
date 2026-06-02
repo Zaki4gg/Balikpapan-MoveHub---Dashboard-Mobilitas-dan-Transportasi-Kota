@@ -53,6 +53,10 @@ const props = defineProps({
   buses: {
     type: Array,
     default: () => activeBuses
+  },
+  userLocation: {
+    type: Object,
+    default: null
   }
 })
 
@@ -60,6 +64,7 @@ const mapContainer = ref(null)
 let map
 let markers = []
 let activeLayers = []
+let markerAnimations = new Set()
 
 const title = computed(() => {
   if (props.mode === 'traffic') {
@@ -167,7 +172,77 @@ const createMarkerElement = ({ color, label }) => {
   return marker
 }
 
+const createBusMarkerElement = (bus, route) => {
+  const marker = document.createElement('button')
+  marker.className = bus.status.startsWith('Delayed') ? 'smart-map-bus-marker smart-map-bus-marker--delayed' : 'smart-map-bus-marker'
+  marker.type = 'button'
+  marker.style.setProperty('--bus-color', route?.color || '#0ea5e9')
+  marker.setAttribute('aria-label', `${bus.number}, ${bus.route}, ${bus.status}`)
+  marker.innerHTML = `
+    <span class="smart-map-bus-marker__pulse"></span>
+    <span class="smart-map-bus-marker__body">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="13" rx="3"></rect>
+        <path d="M8 8h8M8 12h8M8 20l1.5-3M16 20l-1.5-3"></path>
+      </svg>
+    </span>
+    <span class="smart-map-bus-marker__label">${bus.number}</span>
+  `
+  return marker
+}
+
+const markerPopupHtml = ({ title: markerTitle, description, meta }) => `
+  <div class="smart-map-popup">
+    <strong>${markerTitle}</strong>
+    <p>${description}</p>
+    ${meta ? `<p class="smart-map-popup__meta">${meta}</p>` : ''}
+  </div>
+`
+
+const bindInteractivePopup = (element, marker, popup) => {
+  let tapOpen = false
+
+  const openPopup = () => {
+    popup.setLngLat(marker.getLngLat()).addTo(map)
+  }
+
+  const closePopup = () => {
+    if (!tapOpen) {
+      popup.remove()
+    }
+  }
+
+  element.addEventListener('mouseenter', openPopup)
+  element.addEventListener('mouseleave', closePopup)
+  element.addEventListener('focus', openPopup)
+  element.addEventListener('blur', () => {
+    tapOpen = false
+    popup.remove()
+  })
+  element.addEventListener('click', () => {
+    tapOpen = !tapOpen
+    if (tapOpen) {
+      openPopup()
+    } else {
+      popup.remove()
+    }
+  })
+  element.addEventListener('touchstart', (event) => {
+    event.preventDefault()
+    tapOpen = !tapOpen
+    if (tapOpen) {
+      openPopup()
+    } else {
+      popup.remove()
+    }
+  }, { passive: false })
+}
+
 const clearMapLayers = () => {
+  markerAnimations.forEach((animationId) => cancelAnimationFrame(animationId))
+  markerAnimations = new Set()
+
   markers.forEach((marker) => marker.remove())
   markers = []
 
@@ -186,7 +261,7 @@ const clearMapLayers = () => {
   activeLayers = []
 }
 
-const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, properties = {} }) => {
+const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, dashArray, properties = {} }) => {
   if (!coordinates.length) {
     return
   }
@@ -233,30 +308,113 @@ const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, proper
     paint: {
       'line-color': color,
       'line-width': width,
-      'line-opacity': opacity
+      'line-opacity': opacity,
+      ...(dashArray ? { 'line-dasharray': dashArray } : {})
     }
   })
 
   activeLayers.push({ layerIds: [layerId, casingLayerId], sourceId })
 }
 
-const addMarker = ({ coordinates, color = '#0ea5e9', label = 'B', title: markerTitle, description }) => {
+const addMarker = ({ coordinates, color = '#0ea5e9', label = 'B', title: markerTitle, description, meta }) => {
+  const element = createMarkerElement({ color, label })
   const marker = new maplibregl.Marker({
-    element: createMarkerElement({ color, label }),
+    element,
     anchor: 'center'
   })
     .setLngLat(coordinates)
-    .setPopup(
-      new maplibregl.Popup({ offset: 24 }).setHTML(`
-        <div class="smart-map-popup">
-          <strong>${markerTitle}</strong>
-          <p>${description}</p>
-        </div>
-      `)
-    )
     .addTo(map)
 
+  const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 24 })
+    .setHTML(markerPopupHtml({ title: markerTitle, description, meta }))
+
+  bindInteractivePopup(element, marker, popup)
+
   markers.push(marker)
+}
+
+const interpolateCoordinate = (from, to, progress) => [
+  from[0] + ((to[0] - from[0]) * progress),
+  from[1] + ((to[1] - from[1]) * progress)
+]
+
+const nearestPathIndex = (path, coordinate) => {
+  if (!path.length || !coordinate) {
+    return 0
+  }
+
+  return path.reduce((nearest, point, index) => {
+    const distance = Math.hypot(point[0] - coordinate[0], point[1] - coordinate[1])
+    return distance < nearest.distance ? { index, distance } : nearest
+  }, { index: 0, distance: Infinity }).index
+}
+
+const animateBusMarker = ({ marker, popup, path, startCoordinate, delay = 0 }) => {
+  if (path.length < 2) {
+    return
+  }
+
+  let segmentIndex = nearestPathIndex(path, startCoordinate)
+  if (segmentIndex >= path.length - 1) {
+    segmentIndex = 0
+  }
+
+  let progress = 0
+  let lastTime = performance.now() + delay
+
+  let animationId
+
+  const frame = (time) => {
+    if (animationId) {
+      markerAnimations.delete(animationId)
+    }
+
+    const delta = Math.max(0, time - lastTime)
+    lastTime = time
+    progress += delta / 4200
+
+    if (progress >= 1) {
+      progress = 0
+      segmentIndex = (segmentIndex + 1) % (path.length - 1)
+    }
+
+    const coordinate = interpolateCoordinate(path[segmentIndex], path[segmentIndex + 1], progress)
+    marker.setLngLat(coordinate)
+
+    if (popup.isOpen?.()) {
+      popup.setLngLat(coordinate)
+    }
+
+    animationId = requestAnimationFrame(frame)
+    markerAnimations.add(animationId)
+  }
+
+  animationId = requestAnimationFrame(frame)
+  markerAnimations.add(animationId)
+}
+
+const addMovingBusMarker = (bus) => {
+  const route = props.routes.find((item) => item.id === bus.routeId)
+  const path = route ? transitSegment(route) : []
+  const coordinates = nearestRouteCoordinate(bus)
+  const element = createBusMarkerElement(bus, route)
+  const marker = new maplibregl.Marker({
+    element,
+    anchor: 'center'
+  })
+    .setLngLat(coordinates)
+    .addTo(map)
+
+  const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 26 })
+    .setHTML(markerPopupHtml({
+      title: bus.number,
+      description: `${bus.route} - ${bus.location}`,
+      meta: `${bus.passengers}/${bus.capacity} penumpang - ETA ${bus.eta} - ${bus.status}`
+    }))
+
+  bindInteractivePopup(element, marker, popup)
+  markers.push(marker)
+  animateBusMarker({ marker, popup, path, startCoordinate: coordinates, delay: Number(bus.id?.toString().length || 0) * 120 })
 }
 
 const fitBounds = () => {
@@ -265,6 +423,9 @@ const fitBounds = () => {
   if (props.mode === 'transit') {
     props.routes.forEach((route) => transitSegment(route).forEach((coordinate) => bounds.extend(coordinate)))
     props.buses.forEach((bus) => bounds.extend(nearestRouteCoordinate(bus)))
+    if (props.userLocation?.coordinates) {
+      bounds.extend(props.userLocation.coordinates)
+    }
   } else {
     props.traffic.forEach((location) => {
       const segment = trafficSegment(location)
@@ -314,20 +475,26 @@ const renderTransit = () => {
       coordinates: transitSegment(route),
       color: route.color,
       opacity: route.status === 'active' ? 0.88 : 0.62,
-      width: 5,
+      width: route.appStyle ? 6 : 5,
+      dashArray: route.appStyle ? [2.8, 1.2] : undefined,
       properties: { name: route.name }
     })
   })
 
   props.buses.forEach((bus) => {
-    addMarker({
-      coordinates: nearestRouteCoordinate(bus),
-      color: bus.status.startsWith('Delayed') ? '#f97316' : '#0ea5e9',
-      label: 'B',
-      title: bus.number,
-      description: `${bus.route} - ${bus.location} - ETA ${bus.eta}`
-    })
+    addMovingBusMarker(bus)
   })
+
+  if (props.userLocation?.coordinates) {
+    addMarker({
+      coordinates: props.userLocation.coordinates,
+      color: '#2563eb',
+      label: '',
+      title: props.userLocation.name,
+      description: props.userLocation.description,
+      meta: 'Titik simulasi lokasi pengguna'
+    })
+  }
 }
 
 const renderMapLayers = () => {
@@ -362,7 +529,7 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.mode, props.traffic, props.roadNetwork, props.routes, props.transitNetwork, props.buses],
+  () => [props.mode, props.traffic, props.roadNetwork, props.routes, props.transitNetwork, props.buses, props.userLocation],
   () => renderMapLayers(),
   { deep: true }
 )
@@ -391,6 +558,75 @@ onBeforeUnmount(() => {
   padding: 0 4px;
 }
 
+.smart-map-bus-marker {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  position: relative;
+}
+
+.smart-map-bus-marker__pulse {
+  animation: bus-marker-pulse 1.8s ease-out infinite;
+  background: color-mix(in srgb, var(--bus-color, #0ea5e9) 42%, transparent);
+  border-radius: 999px;
+  height: 42px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 42px;
+}
+
+.smart-map-bus-marker__body {
+  align-items: center;
+  background: var(--bus-color, #0ea5e9);
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.28);
+  color: #ffffff;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  position: relative;
+  width: 36px;
+}
+
+.smart-map-bus-marker__body svg {
+  height: 18px;
+  width: 18px;
+}
+
+.smart-map-bus-marker__label {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  max-width: 72px;
+  overflow: hidden;
+  padding: 0.22rem 0.42rem;
+  position: relative;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smart-map-bus-marker--delayed .smart-map-bus-marker__body {
+  background: #f97316;
+}
+
+.smart-map-bus-marker:hover .smart-map-bus-marker__body,
+.smart-map-bus-marker:focus-visible .smart-map-bus-marker__body {
+  transform: translateY(-2px) scale(1.04);
+}
+
 .smart-map-popup {
   color: #0f172a;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -400,5 +636,21 @@ onBeforeUnmount(() => {
 .smart-map-popup p {
   color: #475569;
   margin: 6px 0 0;
+}
+
+.smart-map-popup__meta {
+  color: #dc2626 !important;
+  font-weight: 800;
+}
+
+@keyframes bus-marker-pulse {
+  0% {
+    opacity: 0.45;
+    transform: translate(-50%, -50%) scale(0.65);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
 }
 </style>

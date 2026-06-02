@@ -300,6 +300,415 @@ nav,
   border-radius: var(--r-md);
 }
 
+.bacitra-home-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem;
+}
+
+.bacitra-shortcut {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  font-weight: 800;
+  gap: 0.6rem;
+  min-height: 116px;
+  padding: 1rem 0.75rem;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.bacitra-shortcut:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.bacitra-shortcut--active {
+  border-color: rgba(220, 38, 38, 0.28);
+  box-shadow: 0 10px 28px rgba(220, 38, 38, 0.12);
+}
+
+.bacitra-shortcut-icon {
+  align-items: center;
+  background: #fff7ed;
+  border-radius: 999px;
+  color: #f59e0b;
+  display: flex;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.bacitra-promo {
+  background:
+    linear-gradient(135deg, rgba(29, 78, 216, 0.97), rgba(37, 99, 235, 0.94)),
+    radial-gradient(circle at 90% 10%, rgba(245, 158, 11, 0.85), transparent 34%);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(37, 99, 235, 0.22);
+  min-height: 220px;
+  overflow: hidden;
+  padding: 1.5rem;
+  position: relative;
+}
+
+.bacitra-promo::after {
+  background: #f59e0b;
+  border-radius: 999px;
+  content: "";
+  height: 180px;
+  position: absolute;
+  right: -64px;
+  top: 28px;
+  transform: rotate(-18deg);
+  width: 120px;
+}
+
+.bacitra-route-card {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-left: 5px solid var(--corridor-color);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  width: 100%;
+}
+
+.bacitra-route-card:hover,
+.bacitra-route-card--active {
+  border-color: rgba(220, 38, 38, 0.28);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.bacitra-route-code {
+  align-items: center;
+  border-radius: 12px;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.bacitra-route-preview {
+  display: grid;
+  gap: 0;
+}
+
+.bacitra-route-preview > .card {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  min-height: 30rem;
+}
+
+.bacitra-route-preview .smart-map-marker {
+  background: #dc2626 !important;
+}
+
+.bacitra-route-sheet {
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.bacitra-nearest-panel {
+  border-radius: var(--r-lg);
+  display: grid;
+  overflow: hidden;
+}
+
+.bacitra-all-bus-panel {
+  border-radius: var(--r-lg);
+  display: grid;
+  overflow: hidden;
+}
+
+.bacitra-all-bus-panel > .card,
+.bacitra-nearest-panel > .card {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  min-height: 32rem;
+}
+
+.bacitra-all-bus-panel .smart-map-marker,
+.bacitra-nearest-panel .smart-map-marker {
+  min-width: 30px;
+  height: 30px;
+}
+
+.bacitra-all-bus-sheet {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-top: 0;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem;
+}
+
+.bacitra-nearest-sheet {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-top: 0;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.bacitra-nearest-location {
+  align-items: center;
+  background: #dc143c;
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  position: relative;
+}
+
+.bacitra-nearest-location::before {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  content: "";
+  height: 4px;
+  left: 50%;
+  position: absolute;
+  top: 0.75rem;
+  transform: translateX(-50%);
+  width: 86px;
+}
+
+.bacitra-nearest-empty {
+  align-items: center;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 22rem;
+  padding: 2rem 1.5rem;
+}
+
+.bacitra-empty-illustration {
+  align-items: center;
+  background: #fbe8ec;
+  border-radius: 44% 44% 36% 36%;
+  display: flex;
+  height: 150px;
+  justify-content: center;
+  position: relative;
+  width: 210px;
+}
+
+.bacitra-empty-illustration::before,
+.bacitra-empty-illustration::after {
+  background: #ffc6b2;
+  border-radius: 999px 999px 20px 20px;
+  content: "";
+  height: 112px;
+  position: absolute;
+  top: 18px;
+  transform-origin: bottom center;
+  width: 34px;
+}
+
+.bacitra-empty-illustration::before {
+  transform: rotate(-16deg);
+}
+
+.bacitra-empty-illustration::after {
+  transform: rotate(16deg);
+}
+
+.bacitra-empty-illustration span {
+  background: #dc143c;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  height: 34px;
+  margin-top: 108px;
+  width: 88px;
+  z-index: 1;
+}
+
+.bacitra-ar-panel {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.bacitra-ar-view {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.68)),
+    linear-gradient(115deg, rgba(100, 116, 139, 0.86), rgba(30, 41, 59, 0.95)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 80px);
+  min-height: 34rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.bacitra-ar-view::before {
+  background:
+    radial-gradient(circle at 22% 34%, rgba(255, 255, 255, 0.18), transparent 14%),
+    radial-gradient(circle at 72% 18%, rgba(34, 197, 94, 0.18), transparent 12%),
+    linear-gradient(140deg, transparent 0 34%, rgba(255, 255, 255, 0.08) 35% 36%, transparent 37% 100%);
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+
+.bacitra-ar-topbar {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  left: 1.25rem;
+  position: absolute;
+  right: 1.25rem;
+  top: 1.25rem;
+  z-index: 2;
+}
+
+.bacitra-ar-back {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  color: #0f172a;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.bacitra-ar-reticle {
+  border: 2px solid rgba(255, 255, 255, 0.52);
+  border-radius: 999px;
+  height: 150px;
+  left: 50%;
+  position: absolute;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  z-index: 1;
+}
+
+.bacitra-ar-reticle span {
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  height: 10px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+}
+
+.bacitra-ar-direction {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  bottom: 7rem;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+  display: flex;
+  gap: 1rem;
+  left: 50%;
+  padding: 1rem 1.1rem;
+  position: absolute;
+  transform: translateX(-50%);
+  width: min(92%, 520px);
+  z-index: 2;
+}
+
+.bacitra-ar-arrow {
+  color: #fbbf24;
+  transform: rotate(28deg);
+}
+
+.bacitra-ar-marker {
+  align-items: center;
+  background: rgba(220, 38, 38, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.25);
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.8rem 0.95rem;
+  position: absolute;
+  right: 18%;
+  top: 35%;
+  z-index: 2;
+}
+
+.bacitra-ar-pin {
+  align-items: center;
+  background: #ffffff;
+  border-radius: 999px;
+  color: #dc2626;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.bacitra-ar-status {
+  bottom: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  left: 1.25rem;
+  position: absolute;
+  z-index: 2;
+}
+
+.bacitra-ar-sheet {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-top: 0;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  padding: 1.25rem;
+}
+
+.bacitra-stop-list {
+  list-style: none;
+  margin-left: 0.35rem;
+  padding: 0;
+}
+
+.bacitra-stop-list li {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: 18px 1fr;
+  min-height: 48px;
+  position: relative;
+}
+
+.bacitra-stop-list li:not(:last-child)::before {
+  background: #d1d5db;
+  bottom: -2px;
+  content: "";
+  left: 6px;
+  position: absolute;
+  top: 16px;
+  width: 2px;
+}
+
+.bacitra-stop-dot {
+  background: #fbbf24;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.16);
+  height: 14px;
+  margin-top: 4px;
+  width: 14px;
+  z-index: 1;
+}
+
 .bconnect-panel {
   background:
     linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(14, 116, 144, 0.94)),
