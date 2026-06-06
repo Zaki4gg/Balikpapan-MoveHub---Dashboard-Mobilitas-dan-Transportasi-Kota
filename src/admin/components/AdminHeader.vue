@@ -44,6 +44,16 @@
           </div>
         </div>
 
+        <!-- Logout button -->
+        <button
+          @click="$emit('logout')"
+          class="rounded-lg px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-600 
+                 hover:bg-red-500/20 hover:border-red-500/50 transition font-semibold text-sm"
+          title="Logout dari dashboard"
+        >
+          Logout
+        </button>
+
       </div>
     </div>
   </header>
@@ -58,6 +68,8 @@ defineProps({
   userLabel:    { type: String, default: 'Operator' },
   userInitials: { type: String, default: 'OP' },
 })
+
+defineEmits(['logout'])
 
 const currentDate = ref('')
 

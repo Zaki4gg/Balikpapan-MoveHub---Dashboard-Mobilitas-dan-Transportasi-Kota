@@ -1,5 +1,20 @@
 <template>
-  <div class="app-shell admin-shell flex min-h-screen bg-slate-100 text-slate-900">
+  <!-- Show Login/Register Pages if Not Authenticated -->
+  <template v-if="!isAuthenticated">
+    <LoginPage
+      v-if="authPage === 'login'"
+      @switchToRegister="authPage = 'register'"
+      @loginSuccess="handleLoginSuccess"
+    />
+    <RegistrationPage
+      v-else-if="authPage === 'register'"
+      @switchToLogin="authPage = 'login'"
+      @registerSuccess="authPage = 'login'"
+    />
+  </template>
+
+  <!-- Show Dashboard if Authenticated -->
+  <div v-else class="app-shell admin-shell flex min-h-screen bg-slate-100 text-slate-900">
     <Sidebar
       @navigateTo="currentView = $event"
       :activeView="currentView"
@@ -9,8 +24,9 @@
       <AdminHeader
         :title="pageTitle"
         section-label="Command Center"
-        user-label="Admin Dashboard"
-        user-initials="AD"
+        :user-label="currentUserName"
+        :user-initials="userInitials"
+        @logout="handleLogout"
       />
 
       <main class="app-main admin-main min-h-0 flex-1 overflow-auto px-5 py-6 sm:px-8 lg:px-10">
@@ -26,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import Sidebar from './admin/components/Sidebar.vue'
 import AdminHeader from './admin/components/AdminHeader.vue'
 import DashboardPage from './admin/pages/DashboardPage.vue'
@@ -35,8 +51,14 @@ import CctvGalleryPage from './admin/pages/CctvGalleryPage.vue'
 import TransitTrackingPage from './admin/pages/TransitTrackingPage.vue'
 import ReportsPage from './admin/pages/ReportsPage.vue'
 import MobilityStatsPage from './admin/pages/MobilityStatsPage.vue'
+import LoginPage from './admin/pages/LoginPage.vue'
+import RegistrationPage from './admin/pages/RegistrationPage.vue'
+import { authService } from './shared/services/authService'
 
 const currentView = ref('dashboard')
+const isAuthenticated = ref(false)
+const authPage = ref('login')
+const currentUser = ref(null)
 
 const pageTitle = computed(() => {
   const titles = {
@@ -50,4 +72,44 @@ const pageTitle = computed(() => {
 
   return titles[currentView.value] || 'Dashboard Smart Mobility'
 })
+
+const currentUserName = computed(() => {
+  return currentUser.value?.username || 'Admin'
+})
+
+const userInitials = computed(() => {
+  if (!currentUser.value?.username) return 'AD'
+  const names = currentUser.value.username.split(' ')
+  const initials = names.map(n => n[0]).join('')
+  return initials.substring(0, 2).toUpperCase()
+})
+
+// Check authentication on mount
+onMounted(() => {
+  authService.initializeDemoUser()
+  checkAuthentication()
+})
+
+const checkAuthentication = () => {
+  if (authService.isAuthenticated()) {
+    isAuthenticated.value = true
+    currentUser.value = authService.getCurrentUser()
+  } else {
+    isAuthenticated.value = false
+    currentUser.value = null
+  }
+}
+
+const handleLoginSuccess = (user) => {
+  currentUser.value = user
+  isAuthenticated.value = true
+  currentView.value = 'dashboard'
+}
+
+const handleLogout = () => {
+  authService.logout()
+  isAuthenticated.value = false
+  currentUser.value = null
+  authPage.value = 'login'
+}
 </script>
