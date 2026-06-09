@@ -98,14 +98,31 @@
           </div>
         </div>
 
-        <div class="bacitra-nearest-empty">
-          <div class="bacitra-empty-illustration">
-            <span></span>
-          </div>
-          <h3 class="mt-4 text-xl font-black text-slate-950">Bus terdekat belum terdeteksi</h3>
-          <p class="mt-2 max-w-md text-center text-sm leading-6 text-slate-500">
-            Prototype menampilkan simulasi lokasi pengguna. Data bus terdekat akan muncul saat armada aktif melewati radius halte sekitar Batu Ampar.
-          </p>
+        <div class="bacitra-nearest-list">
+          <article
+            v-for="bus in nearestBusCards"
+            :key="bus.id"
+            class="bacitra-nearest-bus-card"
+          >
+            <div :class="['bacitra-nearest-route-strip', bus.tagClass]">{{ bus.corridorCode }}</div>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-baseline gap-2">
+                <p class="text-3xl font-black text-slate-950">{{ bus.minutes }}</p>
+                <p class="text-base font-black text-slate-950">Menit</p>
+              </div>
+              <div class="mt-2 flex items-center gap-2 text-sm font-black text-slate-950">
+                <span v-html="miniBusIcon"></span>
+                {{ bus.number }}
+              </div>
+              <p class="mt-1 text-sm font-semibold text-slate-500">{{ bus.plate }}</p>
+            </div>
+            <div class="min-w-0 flex-[1.25]">
+              <p class="text-sm font-black text-slate-950">{{ bus.time }} <span class="text-amber-500">⌁</span></p>
+              <p class="mt-2 text-sm font-semibold leading-5 text-slate-600">{{ bus.location }}</p>
+              <p class="mt-1 text-sm font-semibold leading-5 text-slate-600">Tujuan akhir {{ bus.destination }}</p>
+            </div>
+          </article>
+
           <button
             type="button"
             class="mt-5 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-800"
@@ -218,7 +235,7 @@
               selectedCorridor.id === corridor.id ? 'bacitra-route-card--active' : ''
             ]"
             :style="{ '--corridor-color': corridor.color }"
-            @click="selectedCorridor = corridor"
+            @click="selectCorridor(corridor)"
           >
             <span :class="['bacitra-route-code', corridor.tagClass]">{{ corridor.code }}</span>
             <span class="min-w-0 flex-1 text-left">
@@ -249,7 +266,7 @@
               </span>
               <span class="inline-flex items-center gap-2">
                 <span v-html="miniBusIcon"></span>
-                KORIDOR {{ selectedCorridor.code }} ({{ selectedCorridor.buses }} Bus - {{ selectedCorridor.shelters }} Halte)
+                KORIDOR {{ selectedDirection.code }} ({{ selectedDirection.buses }} Bus - {{ selectedDirection.shelters }} Halte)
               </span>
             </div>
           </div>
@@ -258,11 +275,19 @@
             <div class="rounded-2xl bg-slate-50 p-4">
               <div class="flex items-center justify-between gap-4">
                 <div class="min-w-0 flex-1 space-y-3">
-                  <p class="truncate text-base font-semibold text-slate-950">{{ selectedCorridor.from }}</p>
+                  <p class="truncate text-base font-semibold text-slate-950">{{ selectedDirection.from }}</p>
                   <div class="h-px bg-slate-200"></div>
-                  <p class="truncate text-base font-semibold text-slate-950">{{ selectedCorridor.to }}</p>
+                  <p class="truncate text-base font-semibold text-slate-950">{{ selectedDirection.to }}</p>
                 </div>
-                <button type="button" class="rounded-xl bg-red-50 p-3 text-red-600" title="Tukar arah">
+                <button
+                  type="button"
+                  :class="[
+                    'rounded-xl bg-red-50 p-3 text-red-600 transition hover:bg-red-100',
+                    !selectedCorridor.reverse ? 'cursor-not-allowed opacity-40' : ''
+                  ]"
+                  :title="selectedCorridor.reverse ? 'Tukar arah' : 'Arah balik belum tersedia'"
+                  @click="toggleDirection"
+                >
                   <span v-html="swapIcon"></span>
                 </button>
               </div>
@@ -283,7 +308,7 @@
             </p>
 
             <ol class="bacitra-stop-list mt-6">
-              <li v-for="stop in selectedCorridor.stops" :key="stop">
+              <li v-for="stop in selectedDirection.stops" :key="stop">
                 <span class="bacitra-stop-dot"></span>
                 <div>
                   <p class="font-bold text-slate-950">{{ stop }}</p>
@@ -348,7 +373,16 @@ const buses = ref(activeBuses)
 const transitNetwork = ref(emptyTransitNetwork)
 const shelterQuery = ref('')
 const corridors = bacitraCorridors
-const selectedCorridor = ref(bacitraCorridors[4])
+const getRequestedCorridorId = () => {
+  const route = window.location.hash.replace('#', '')
+  const query = route.includes('?') ? route.slice(route.indexOf('?') + 1) : ''
+  const fromQuery = new URLSearchParams(query).get('corridor')
+  return fromQuery || sessionStorage.getItem('smart-mobility-selected-corridor')
+}
+const getInitialCorridor = () =>
+  bacitraCorridors.find((corridor) => corridor.id === getRequestedCorridorId()) || bacitraCorridors[4]
+const selectedCorridor = ref(getInitialCorridor())
+const reverseDirection = ref(false)
 const activeFeature = ref('route')
 const userLocation = {
   name: 'Lokasi anda sekarang',
@@ -356,35 +390,51 @@ const userLocation = {
   coordinates: [116.8294, -1.2347]
 }
 
+const selectedDirection = computed(() => {
+  const corridor = selectedCorridor.value
+
+  if (reverseDirection.value && corridor.reverse) {
+    return {
+      ...corridor,
+      from: corridor.reverse.from,
+      to: corridor.reverse.to,
+      stops: corridor.reverse.stops,
+      path: corridor.reverse.path
+    }
+  }
+
+  return corridor
+})
+
 const selectedMapRoutes = computed(() => [
   {
-    id: selectedCorridor.value.routeId,
-    name: `Koridor ${selectedCorridor.value.code}`,
-    shortName: selectedCorridor.value.code,
-    route: `${selectedCorridor.value.from} > ${selectedCorridor.value.to}`,
+    id: selectedDirection.value.routeId,
+    name: `Koridor ${selectedDirection.value.code}`,
+    shortName: selectedDirection.value.code,
+    route: `${selectedDirection.value.from} > ${selectedDirection.value.to}`,
     status: 'active',
-    fleet: selectedCorridor.value.buses,
+    fleet: selectedDirection.value.buses,
     passengers: 0,
     onTime: 94,
     eta: '7 menit',
     color: '#111827',
     appStyle: true,
-    path: selectedCorridor.value.path
+    path: selectedDirection.value.path
   }
 ])
 
 const selectedMapBuses = computed(() =>
-  selectedCorridor.value.busCodes.map((code, index) => ({
-    id: `${selectedCorridor.value.id}-${code}`,
+  selectedDirection.value.busCodes.map((code, index) => ({
+    id: `${selectedDirection.value.id}-${reverseDirection.value ? 'reverse' : 'forward'}-${code}`,
     number: code,
-    route: `Koridor ${selectedCorridor.value.code}`,
-    routeId: selectedCorridor.value.routeId,
-    location: selectedCorridor.value.stops[Math.min(index + 1, selectedCorridor.value.stops.length - 1)],
+    route: `Koridor ${selectedDirection.value.code}`,
+    routeId: selectedDirection.value.routeId,
+    location: selectedDirection.value.stops[Math.min(index + 1, selectedDirection.value.stops.length - 1)],
     passengers: 22 + (index * 5),
     capacity: 50,
     status: 'On Schedule',
     eta: `${6 + (index * 3)} menit`,
-    coordinates: selectedCorridor.value.path[Math.min(index + 1, selectedCorridor.value.path.length - 1)]
+    coordinates: selectedDirection.value.path[Math.min(index + 1, selectedDirection.value.path.length - 1)]
   }))
 )
 
@@ -409,13 +459,18 @@ const allBusMapBuses = computed(() =>
     corridor.busCodes.slice(0, 3).map((code, index) => ({
       id: `all-${corridor.id}-${code}`,
       number: code,
+      plate: `KT 79${60 + index}${corridor.code.replace(/\D/g, '') || 1} AU`,
       route: `Koridor ${corridor.code}`,
       routeId: corridor.routeId,
+      corridorCode: corridor.code,
+      tagClass: corridor.tagClass,
       location: corridor.stops[Math.min(index + 1, corridor.stops.length - 1)],
+      destination: corridor.to,
       passengers: 16 + (index * 8),
       capacity: 50,
       status: 'On Schedule',
       eta: `${5 + (index * 4)} menit`,
+      updatedAt: `06 Jun 2026 18:${11 + index}:59`,
       coordinates: corridor.path[Math.min(index + 1, corridor.path.length - 1)]
     }))
   )
@@ -423,7 +478,7 @@ const allBusMapBuses = computed(() =>
 
 const nearestMapRoutes = computed(() =>
   bacitraCorridors
-    .filter((corridor) => ['corridor-k2b', 'corridor-k2a', 'corridor-k1'].includes(corridor.id))
+    .filter((corridor) => ['corridor-k2b', 'corridor-k2a'].includes(corridor.id))
     .map((corridor) => ({
       id: corridor.routeId,
       name: `Koridor ${corridor.code}`,
@@ -440,23 +495,55 @@ const nearestMapRoutes = computed(() =>
 )
 
 const nearestMapBuses = computed(() =>
-  bacitraCorridors
-    .filter((corridor) => ['corridor-k2b', 'corridor-k2a'].includes(corridor.id))
-    .flatMap((corridor) =>
-      corridor.busCodes.slice(0, 2).map((code, index) => ({
-        id: `near-${corridor.id}-${code}`,
-        number: code,
-        route: `Koridor ${corridor.code}`,
-        routeId: corridor.routeId,
-        location: corridor.stops[Math.min(index + 2, corridor.stops.length - 1)],
-        passengers: 18 + (index * 7),
-        capacity: 50,
-        status: 'On Schedule',
-        eta: `${8 + (index * 4)} menit`,
-        coordinates: corridor.path[Math.min(index + 2, corridor.path.length - 1)]
-      }))
-    )
+  nearestBusCards.value.map((bus) => ({
+    ...bus,
+    route: `Koridor ${bus.corridorCode}`,
+    routeId: bus.routeId,
+    passengers: bus.passengers,
+    capacity: 50,
+    status: 'On Schedule',
+    eta: `${bus.minutes} menit`,
+    coordinates: bus.coordinates
+  }))
 )
+
+const nearestBusCards = computed(() => {
+  const k2b = bacitraCorridors.find((corridor) => corridor.id === 'corridor-k2b')
+  const k2a = bacitraCorridors.find((corridor) => corridor.id === 'corridor-k2a')
+
+  return [
+    {
+      id: 'near-k2b-03',
+      number: 'TB IIB 03',
+      plate: 'KT 7916 AU',
+      corridorCode: 'K2B',
+      routeId: k2b.routeId,
+      tagClass: k2b.tagClass,
+      minutes: 3,
+      time: '18:11',
+      location: 'Terminal Batu Ampar > Perintis',
+      destination: 'Bank Danamon',
+      passengers: 31,
+      updatedAt: '06 Jun 2026 18:11:59',
+      coordinates: k2b.path[8]
+    },
+    {
+      id: 'near-k2a-05',
+      number: 'TB IIA 05',
+      plate: 'KT 7969 AU',
+      corridorCode: 'K2A',
+      routeId: k2a.routeId,
+      tagClass: k2a.tagClass,
+      minutes: 4,
+      time: '18:11',
+      location: 'Pulau Indah 2 > SD Kartika',
+      destination: 'Terminal Batu Ampar',
+      passengers: 24,
+      updatedAt: '06 Jun 2026 18:11:52',
+      coordinates: k2a.path[9]
+    }
+  ]
+})
 
 const filteredShelters = computed(() => {
   const query = shelterQuery.value.toLowerCase()
@@ -468,6 +555,17 @@ const filteredShelters = computed(() => {
 })
 const arShelters = computed(() => bacitraShelters.slice(0, 3))
 const nearestShelter = computed(() => arShelters.value[0])
+
+const selectCorridor = (corridor) => {
+  selectedCorridor.value = corridor
+  reverseDirection.value = false
+  sessionStorage.setItem('smart-mobility-selected-corridor', corridor.id)
+}
+
+const toggleDirection = () => {
+  if (!selectedCorridor.value.reverse) return
+  reverseDirection.value = !reverseDirection.value
+}
 
 const corridorTag = (code) => {
   if (code === 'B') return 'bg-pink-500'
@@ -486,6 +584,11 @@ const loadLocalTransitNetwork = async () => {
 }
 
 onMounted(async () => {
+  const requestedCorridor = getInitialCorridor()
+  selectedCorridor.value = requestedCorridor
+  activeFeature.value = 'route'
+  reverseDirection.value = false
+
   try {
     const [routeData, busData, transitNetworkData] = await Promise.all([
       api.getPublicRoutes(),

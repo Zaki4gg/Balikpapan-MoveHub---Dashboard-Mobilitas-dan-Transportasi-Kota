@@ -292,12 +292,21 @@ nav,
   border: 1px solid rgba(14, 165, 233, 0.16);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm);
+  min-height: 9rem;
+  min-width: 0;
 }
 
 .public-list-item {
   background: rgba(248, 250, 252, 0.84);
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: var(--r-md);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.kpi-card {
+  min-height: 9.5rem;
+  min-width: 0;
 }
 
 .bacitra-home-card {
@@ -535,6 +544,33 @@ nav,
   margin-top: 108px;
   width: 88px;
   z-index: 1;
+}
+
+.bacitra-nearest-list {
+  background: #ffffff;
+  padding: 1rem 0 1.25rem;
+}
+
+.bacitra-nearest-bus-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.35rem;
+}
+
+.bacitra-nearest-bus-card + .bacitra-nearest-bus-card {
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.bacitra-nearest-route-strip {
+  align-items: center;
+  color: #ffffff;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 1.35rem;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 96px;
+  width: 58px;
 }
 
 .bacitra-ar-panel {

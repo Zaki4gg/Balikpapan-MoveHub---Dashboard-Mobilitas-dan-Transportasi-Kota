@@ -41,7 +41,7 @@ const routeMap = {
 const currentPage = ref('home')
 
 const syncRoute = () => {
-  const route = window.location.hash.replace('#', '') || '/'
+  const route = (window.location.hash.replace('#', '') || '/').split('?')[0]
   currentPage.value = routeMap[route] || 'home'
 }
 

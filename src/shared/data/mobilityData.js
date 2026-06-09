@@ -1,29 +1,5 @@
 export const trafficLocations = [
   {
-    id: 1,
-    name: 'MT Haryono Simpang Wika',
-    description: 'Simpang utama kota',
-    level: 'heavy',
-    density: 85,
-    avgSpeed: 10,
-    coordinates: [116.8474, -1.2649],
-    color: '#ef4444',
-    roadFeatureId: 'road-mt-haryono-wika',
-    segment: []
-  },
-  {
-    id: 2,
-    name: 'Jl. Soekarno Hatta',
-    description: 'Ruas utama menuju bandara',
-    level: 'medium',
-    density: 65,
-    avgSpeed: 25,
-    coordinates: [116.8589, -1.2406],
-    color: '#f59e0b',
-    roadFeatureId: 'road-soekarno-hatta',
-    segment: []
-  },
-  {
     id: 3,
     name: 'Jl. Ahmad Yani',
     description: 'Kawasan perdagangan',
@@ -37,14 +13,14 @@ export const trafficLocations = [
   },
   {
     id: 4,
-    name: 'Jl. Gatot Subroto',
-    description: 'Jalan penghubung',
+    name: 'Ruas Gunung Malang',
+    description: 'Ruas pusat kota',
     level: 'medium',
     density: 55,
     avgSpeed: 35,
     coordinates: [116.837, -1.2496],
     color: '#f59e0b',
-    roadFeatureId: 'road-gatot-subroto',
+    roadFeatureId: 'road-gunung-malang',
     segment: []
   },
   {
@@ -60,15 +36,27 @@ export const trafficLocations = [
     segment: []
   },
   {
-    id: 6,
-    name: 'Jl. Imam Bonjol',
-    description: 'Jalan permukiman',
-    level: 'light',
-    density: 20,
-    avgSpeed: 55,
-    coordinates: [116.8445, -1.2448],
-    color: '#10b981',
-    roadFeatureId: 'road-imam-bonjol',
+    id: 7,
+    name: 'Jl. Jenderal Sudirman - BSB/Penta City',
+    description: 'Ruas pusat belanja dan kawasan pesisir',
+    level: 'medium',
+    density: 70,
+    avgSpeed: 22,
+    coordinates: [116.8599, -1.2709],
+    color: '#f59e0b',
+    roadFeatureId: 'road-sudirman-bsb-penta-city',
+    segment: []
+  },
+  {
+    id: 8,
+    name: 'Jl. MT Haryono - Lampu Merah Grand City',
+    description: 'Simpang lampu merah kawasan Grand City',
+    level: 'heavy',
+    density: 90,
+    avgSpeed: 9,
+    coordinates: [116.87276, -1.229545],
+    color: '#ef4444',
+    roadFeatureId: 'road-mt-haryono-grand-city-light',
     segment: []
   }
 ]
@@ -96,7 +84,7 @@ export const transitRoutes = [
     id: 2,
     name: 'Bacitra Route 2',
     shortName: 'Route 2',
-    route: 'Terminal Pusat ke Bandara',
+    route: 'Terminal Pusat ke Poros Soekarno-Hatta',
     status: 'active',
     fleet: 15,
     passengers: 620,
@@ -190,7 +178,7 @@ export const activeBuses = [
     number: 'BLK-004',
     route: 'Route 2',
     routeId: 2,
-    location: 'Bandara Road',
+    location: 'Poros Soekarno-Hatta',
     passengers: 50,
     capacity: 50,
     status: 'Delayed (5 min)',
@@ -202,7 +190,7 @@ export const activeBuses = [
     number: 'BLK-005',
     route: 'Route 3',
     routeId: 3,
-    location: 'Jl. Gatot Subroto',
+    location: 'Ruas Gunung Malang',
     passengers: 35,
     capacity: 50,
     status: 'On Schedule',

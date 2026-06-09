@@ -251,7 +251,11 @@ const corridors = bacitraCorridors
 const shelters = bacitraShelters
 const serviceInfo = bacitraServiceInfo
 const operationalQueue = bacitraOperationalQueue
-const selectedCorridor = ref(bacitraCorridors[4])
+const getInitialCorridor = () => {
+  const requestedCorridor = sessionStorage.getItem('smart-mobility-selected-corridor')
+  return bacitraCorridors.find((corridor) => corridor.id === requestedCorridor) || bacitraCorridors[4]
+}
+const selectedCorridor = ref(getInitialCorridor())
 const mapMode = ref('single')
 const fleetFilter = ref('')
 
@@ -317,6 +321,7 @@ const currentRouteDescription = computed(() =>
 
 const selectCorridor = (corridor) => {
   selectedCorridor.value = corridor
+  sessionStorage.setItem('smart-mobility-selected-corridor', corridor.id)
   mapMode.value = 'single'
 }
 

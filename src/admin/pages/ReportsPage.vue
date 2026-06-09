@@ -224,7 +224,7 @@ const fallbackReports = [
   {
     id: 4,
     type: 'maintenance',
-    location: 'Jl. Gatot Subroto',
+    location: 'Ruas Gunung Malang',
     description: 'Traffic light mati, menyebabkan kemacetan dan risiko kecelakaan',
     priority: 'high',
     status: 'in-progress',

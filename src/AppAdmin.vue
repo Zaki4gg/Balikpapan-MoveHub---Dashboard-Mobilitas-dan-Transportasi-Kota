@@ -35,7 +35,7 @@
         <TransitTrackingPage v-else-if="currentView === 'transit'" />
         <ReportsPage v-else-if="currentView === 'reports'" />
         <MobilityStatsPage v-else-if="currentView === 'stats'" />
-        <DashboardPage v-else />
+        <DashboardPage v-else @open-transit="handleOpenTransit" />
       </main>
     </div>
   </div>
@@ -111,5 +111,13 @@ const handleLogout = () => {
   isAuthenticated.value = false
   currentUser.value = null
   authPage.value = 'login'
+}
+
+const handleOpenTransit = (corridorId) => {
+  if (corridorId) {
+    sessionStorage.setItem('smart-mobility-selected-corridor', corridorId)
+  }
+
+  currentView.value = 'transit'
 }
 </script>

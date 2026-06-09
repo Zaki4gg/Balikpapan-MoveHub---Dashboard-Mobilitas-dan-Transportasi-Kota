@@ -92,7 +92,7 @@ const eyebrow = computed(() => {
 
 const subtitle = computed(() => {
   if (props.mode === 'traffic') {
-    return 'Simulasi CCTV + kondisi ruas'
+    return 'Kondisi ruas'
   }
 
   if (props.mode === 'transit') {
@@ -145,6 +145,10 @@ const trafficSegment = (location) => {
 }
 
 const transitSegment = (route) => {
+  if (route.path?.length) {
+    return route.path
+  }
+
   const feature = transitFeatureByRouteId().get(route.id)
   return feature?.geometry?.coordinates?.length ? feature.geometry.coordinates : route.path || []
 }
@@ -197,6 +201,23 @@ const markerPopupHtml = ({ title: markerTitle, description, meta }) => `
     <strong>${markerTitle}</strong>
     <p>${description}</p>
     ${meta ? `<p class="smart-map-popup__meta">${meta}</p>` : ''}
+  </div>
+`
+
+const busPopupHtml = (bus) => `
+  <div class="smart-map-popup">
+    <strong>${bus.number}${bus.plate ? ` - ${bus.plate}` : ''}</strong>
+    <p>${bus.route} - ${bus.location}</p>
+    <p>${bus.passengers}/${bus.capacity} penumpang - ETA ${bus.eta} - ${bus.status}</p>
+    <p class="smart-map-popup__meta">${bus.updatedAt || new Date().toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })}</p>
+    <button type="button" class="smart-map-popup__report">Buat Laporan</button>
   </div>
 `
 
@@ -261,7 +282,32 @@ const clearMapLayers = () => {
   activeLayers = []
 }
 
-const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, dashArray, properties = {} }) => {
+const lineWidthByZoom = (baseWidth, minRatio = 0.42, maxBonus = 1) => [
+  'interpolate',
+  ['linear'],
+  ['zoom'],
+  9,
+  Math.max(1, baseWidth * minRatio),
+  11.5,
+  Math.max(1.5, baseWidth * 0.62),
+  13.5,
+  baseWidth,
+  16,
+  baseWidth + maxBonus
+]
+
+const addLineLayer = ({
+  id,
+  coordinates,
+  color,
+  opacity = 0.9,
+  width = 5,
+  dashArray,
+  centerColor,
+  centerWidth = 2,
+  centerDashArray,
+  properties = {}
+}) => {
   if (!coordinates.length) {
     return
   }
@@ -269,6 +315,7 @@ const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, dashAr
   const sourceId = `${id}-source`
   const casingLayerId = `${id}-casing`
   const layerId = `${id}-line`
+  const centerLayerId = `${id}-center`
 
   map.addSource(sourceId, {
     type: 'geojson',
@@ -292,7 +339,7 @@ const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, dashAr
     },
     paint: {
       'line-color': '#ffffff',
-      'line-width': width + 6,
+      'line-width': lineWidthByZoom(width + 6, 0.38, 1.5),
       'line-opacity': 0.9
     }
   })
@@ -307,13 +354,35 @@ const addLineLayer = ({ id, coordinates, color, opacity = 0.9, width = 5, dashAr
     },
     paint: {
       'line-color': color,
-      'line-width': width,
+      'line-width': lineWidthByZoom(width),
       'line-opacity': opacity,
       ...(dashArray ? { 'line-dasharray': dashArray } : {})
     }
   })
 
-  activeLayers.push({ layerIds: [layerId, casingLayerId], sourceId })
+  const layerIds = [layerId, casingLayerId]
+
+  if (centerColor) {
+    map.addLayer({
+      id: centerLayerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round'
+      },
+      paint: {
+        'line-color': centerColor,
+        'line-width': lineWidthByZoom(centerWidth, 0.55, 0.4),
+        'line-opacity': opacity,
+        ...(centerDashArray ? { 'line-dasharray': centerDashArray } : {})
+      }
+    })
+
+    layerIds.unshift(centerLayerId)
+  }
+
+  activeLayers.push({ layerIds, sourceId })
 }
 
 const addMarker = ({ coordinates, color = '#0ea5e9', label = 'B', title: markerTitle, description, meta }) => {
@@ -333,34 +402,99 @@ const addMarker = ({ coordinates, color = '#0ea5e9', label = 'B', title: markerT
   markers.push(marker)
 }
 
+const mapMarkerScale = () => {
+  if (!map) {
+    return 1
+  }
+
+  const zoom = map.getZoom()
+  if (zoom <= 10) return 0.58
+  if (zoom <= 11.5) return 0.68
+  if (zoom <= 13) return 0.82
+  return 1
+}
+
+const updateMarkerScale = () => {
+  const scale = mapMarkerScale()
+  markers.forEach((marker) => {
+    marker.getElement().style.setProperty('--map-marker-scale', scale)
+  })
+}
+
 const interpolateCoordinate = (from, to, progress) => [
   from[0] + ((to[0] - from[0]) * progress),
   from[1] + ((to[1] - from[1]) * progress)
 ]
 
-const nearestPathIndex = (path, coordinate) => {
-  if (!path.length || !coordinate) {
-    return 0
+const stableSeed = (value) =>
+  String(value ?? '')
+    .split('')
+    .reduce((total, char) => total + char.charCodeAt(0), 0)
+
+const pathMetrics = (path) => {
+  const segmentLengths = []
+  let totalLength = 0
+
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const distance = Math.hypot(path[index + 1][0] - path[index][0], path[index + 1][1] - path[index][1])
+    segmentLengths.push(distance)
+    totalLength += distance
   }
 
-  return path.reduce((nearest, point, index) => {
-    const distance = Math.hypot(point[0] - coordinate[0], point[1] - coordinate[1])
-    return distance < nearest.distance ? { index, distance } : nearest
-  }, { index: 0, distance: Infinity }).index
+  return { segmentLengths, totalLength }
 }
 
-const animateBusMarker = ({ marker, popup, path, startCoordinate, delay = 0 }) => {
+const coordinateAtDistance = (path, metrics, rawDistance) => {
   if (path.length < 2) {
+    return path[0]
+  }
+
+  if (!metrics.totalLength) {
+    return path[0]
+  }
+
+  let distance = ((rawDistance % metrics.totalLength) + metrics.totalLength) % metrics.totalLength
+
+  for (let index = 0; index < metrics.segmentLengths.length; index += 1) {
+    const segmentLength = metrics.segmentLengths[index]
+
+    if (distance <= segmentLength || index === metrics.segmentLengths.length - 1) {
+      const progress = segmentLength ? distance / segmentLength : 0
+      return interpolateCoordinate(path[index], path[index + 1], progress)
+    }
+
+    distance -= segmentLength
+  }
+
+  return path[path.length - 1]
+}
+
+const distributedBusDistance = (path, bus, routeBusIndex = 0, routeBusCount = 1) => {
+  const metrics = pathMetrics(path)
+
+  if (!metrics.totalLength) {
+    return { metrics, distance: 0, coordinate: path[0] || bus.coordinates }
+  }
+
+  const spacing = 1 / Math.max(routeBusCount, 1)
+  const seed = stableSeed(bus.id || bus.number)
+  const jitter = ((seed % 9) - 4) * Math.min(0.018, spacing * 0.18)
+  const progress = ((routeBusIndex + 0.5) * spacing + jitter + 1) % 1
+  const distance = progress * metrics.totalLength
+
+  return {
+    metrics,
+    distance,
+    coordinate: coordinateAtDistance(path, metrics, distance)
+  }
+}
+
+const animateBusMarker = ({ marker, popup, path, metrics, startDistance = 0, duration = 210000, delay = 0 }) => {
+  if (path.length < 2 || !metrics.totalLength) {
     return
   }
 
-  let segmentIndex = nearestPathIndex(path, startCoordinate)
-  if (segmentIndex >= path.length - 1) {
-    segmentIndex = 0
-  }
-
-  let progress = 0
-  let lastTime = performance.now() + delay
+  const startTime = performance.now() + delay
 
   let animationId
 
@@ -369,16 +503,9 @@ const animateBusMarker = ({ marker, popup, path, startCoordinate, delay = 0 }) =
       markerAnimations.delete(animationId)
     }
 
-    const delta = Math.max(0, time - lastTime)
-    lastTime = time
-    progress += delta / 4200
-
-    if (progress >= 1) {
-      progress = 0
-      segmentIndex = (segmentIndex + 1) % (path.length - 1)
-    }
-
-    const coordinate = interpolateCoordinate(path[segmentIndex], path[segmentIndex + 1], progress)
+    const elapsed = Math.max(0, time - startTime)
+    const distance = startDistance + ((elapsed / duration) * metrics.totalLength)
+    const coordinate = coordinateAtDistance(path, metrics, distance)
     marker.setLngLat(coordinate)
 
     if (popup.isOpen?.()) {
@@ -393,10 +520,11 @@ const animateBusMarker = ({ marker, popup, path, startCoordinate, delay = 0 }) =
   markerAnimations.add(animationId)
 }
 
-const addMovingBusMarker = (bus) => {
+const addMovingBusMarker = (bus, routeBusIndex = 0, routeBusCount = 1) => {
   const route = props.routes.find((item) => item.id === bus.routeId)
   const path = route ? transitSegment(route) : []
-  const coordinates = nearestRouteCoordinate(bus)
+  const position = distributedBusDistance(path, bus, routeBusIndex, routeBusCount)
+  const coordinates = position.coordinate || nearestRouteCoordinate(bus)
   const element = createBusMarkerElement(bus, route)
   const marker = new maplibregl.Marker({
     element,
@@ -406,15 +534,19 @@ const addMovingBusMarker = (bus) => {
     .addTo(map)
 
   const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 26 })
-    .setHTML(markerPopupHtml({
-      title: bus.number,
-      description: `${bus.route} - ${bus.location}`,
-      meta: `${bus.passengers}/${bus.capacity} penumpang - ETA ${bus.eta} - ${bus.status}`
-    }))
+    .setHTML(busPopupHtml(bus))
 
   bindInteractivePopup(element, marker, popup)
   markers.push(marker)
-  animateBusMarker({ marker, popup, path, startCoordinate: coordinates, delay: Number(bus.id?.toString().length || 0) * 120 })
+  animateBusMarker({
+    marker,
+    popup,
+    path,
+    metrics: position.metrics,
+    startDistance: position.distance,
+    duration: 200000 + (stableSeed(bus.number || bus.id) % 45) * 1000,
+    delay: Number(bus.id?.toString().length || 0) * 180
+  })
 }
 
 const fitBounds = () => {
@@ -444,6 +576,7 @@ const fitBounds = () => {
       maxZoom: 14.5,
       duration: 700
     })
+    updateMarkerScale()
   }
 }
 
@@ -475,14 +608,24 @@ const renderTransit = () => {
       coordinates: transitSegment(route),
       color: route.color,
       opacity: route.status === 'active' ? 0.88 : 0.62,
-      width: route.appStyle ? 6 : 5,
-      dashArray: route.appStyle ? [2.8, 1.2] : undefined,
+      width: route.appStyle ? 7 : 5,
+      centerColor: route.appStyle ? '#ffffff' : undefined,
+      centerWidth: route.appStyle ? 2 : undefined,
+      centerDashArray: route.appStyle ? [1.2, 1.8] : undefined,
       properties: { name: route.name }
     })
   })
 
+  const busesByRoute = props.buses.reduce((groups, bus) => {
+    const routeBuses = groups.get(bus.routeId) || []
+    routeBuses.push(bus)
+    groups.set(bus.routeId, routeBuses)
+    return groups
+  }, new Map())
+
   props.buses.forEach((bus) => {
-    addMovingBusMarker(bus)
+    const routeBuses = busesByRoute.get(bus.routeId) || [bus]
+    addMovingBusMarker(bus, routeBuses.findIndex((item) => item.id === bus.id), routeBuses.length)
   })
 
   if (props.userLocation?.coordinates) {
@@ -511,6 +654,7 @@ const renderMapLayers = () => {
   }
 
   fitBounds()
+  updateMarkerScale()
 }
 
 onMounted(() => {
@@ -526,6 +670,8 @@ onMounted(() => {
   map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
 
   map.on('load', renderMapLayers)
+  map.on('zoom', updateMarkerScale)
+  map.on('moveend', updateMarkerScale)
 })
 
 watch(
@@ -535,6 +681,9 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  markerAnimations.forEach((animationId) => cancelAnimationFrame(animationId))
+  markerAnimations = new Set()
+
   if (map) {
     map.remove()
   }
@@ -556,6 +705,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-width: 36px;
   padding: 0 4px;
+  transform: scale(var(--map-marker-scale, 1));
+  transform-origin: center;
 }
 
 .smart-map-bus-marker {
@@ -564,10 +715,13 @@ onBeforeUnmount(() => {
   border: 0;
   cursor: pointer;
   display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
+  height: 36px;
+  justify-content: center;
   padding: 0;
   position: relative;
+  transform: scale(var(--map-marker-scale, 1));
+  transform-origin: center;
+  width: 36px;
 }
 
 .smart-map-bus-marker__pulse {
@@ -613,8 +767,11 @@ onBeforeUnmount(() => {
   max-width: 72px;
   overflow: hidden;
   padding: 0.22rem 0.42rem;
-  position: relative;
+  position: absolute;
+  top: 40px;
+  left: 50%;
   text-overflow: ellipsis;
+  transform: translateX(-50%);
   white-space: nowrap;
 }
 
@@ -641,6 +798,17 @@ onBeforeUnmount(() => {
 .smart-map-popup__meta {
   color: #dc2626 !important;
   font-weight: 800;
+}
+
+.smart-map-popup__report {
+  background: #dc143c;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 900;
+  margin-top: 0.9rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
 }
 
 @keyframes bus-marker-pulse {
